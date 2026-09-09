@@ -124,6 +124,20 @@ def validate_read_action(
         query=query.strip()
     )
 
+def parse_agent_output(
+    text: str,
+    allowed_actions: set[str] | None = None
+) -> AgentAction:
+    """
+    Parse and validate raw LLM output
+    """
+
+    data = parse_json(text)
+
+    return validate_agent_output(
+        data,
+        allowed_actions=allowed_actions
+    )
 
 def validate_tool_action(
     data: dict
