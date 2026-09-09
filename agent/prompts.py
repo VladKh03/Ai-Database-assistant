@@ -86,3 +86,33 @@ def get_system_prompt() -> str:
     return SYSTEM_PROMPT_TEMPLATE.format(
         schema=schema
     )
+
+RESULT_PROMPT_TEMPLATE = """
+The user asked:
+
+{user_query}
+
+The database returned:
+
+{result}
+
+Answer the user's question using only the database result.
+
+Rules:
+
+- Do not invent any additional data
+- Do not mention SQL unless it is relevant
+- If the result is empty, say that no matching records were found
+- If the operation failed, clearly explain the error
+- Keep the answer concise and clear
+"""
+
+
+def build_result_prompt(
+    user_query: str,
+    result
+) -> str:
+    return RESULT_PROMPT_TEMPLATE.format(
+        user_query=user_query,
+        result=result
+    )
