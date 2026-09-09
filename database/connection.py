@@ -45,24 +45,6 @@ def get_session():
         db.close()
 
 
-def execute_query(query: str, params: dict | None = None):
-    """
-    Execute read-only query and return rows as dictionaries
-    """
-    params = params or {}
-
-    with engine.connect() as connection:
-        result = connection.execute(
-            text(query),
-            params
-        )
-
-        return [
-            dict(row)
-            for row in result.mappings().all()
-        ]
-
-
 def execute_write(query: str, params: dict | None = None):
     """
     Execute INSERT, UPDATE or DELETE

@@ -1,20 +1,3 @@
-from typing import Any
-
-
-READ_FORMAT = {
-    "action": "query_database",
-    "query": "SELECT ..."
-}
-
-
-WRITE_FORMAT = {
-    "action": "tool_name",
-    "arguments": {
-        "key": "value"
-    }
-}
-
-
 AGENT_OUTPUT_PROMPT = """
 You must return valid JSON only.
 

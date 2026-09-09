@@ -4,8 +4,8 @@ from agent.response_builder import build_natural_response
 
 from llm.model import qwen_model
 from llm.parser import (
-    parse_agent_output,
     LLMOutputError
+    generate_and_parse
 )
 
 from tools.read_tools import query_database
@@ -54,25 +54,15 @@ You must:
 def generate_read_action(
     user_query: str
 ):
-    """
-    Ask Qwen to convert a user question into
-    a structured query_database action
-    """
-
     messages = build_read_messages(
         user_query
     )
 
-    raw_output = qwen_model.generate(
-        messages
-    )
-
-    action = parse_agent_output(
-        raw_output,
+    return generate_and_parse(
+        model=qwen_model,
+        messages=messages,
         allowed_actions=ALLOWED_READ_ACTIONS
     )
-
-    return action
 
 
 def run_read_pipeline(
