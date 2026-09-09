@@ -40,7 +40,7 @@ class QwenModel:
 
         self.generation_config = GenerationConfig(
             max_new_tokens=max_new_tokens,
-            do_sample=temperature > 0,
+            do_sample=False,
             temperature=temperature,
             top_p=top_p,
             repetition_penalty=1.05

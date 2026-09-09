@@ -70,6 +70,12 @@ RULES:
     - do not include markdown code fences
     - do not include explanations inside the SQL
     - follow SQLite syntax
+    - preserve table and column names exactly as they appear in the database schema
+    - if a table or column name contains spaces or special characters,
+      quote the identifier using SQLite double quotes
+
+      Example:
+      "Order Details"
 
 15. Prefer exact database operations over assumptions.
 

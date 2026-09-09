@@ -111,13 +111,24 @@ def apply_limit(
     max_rows: int = MAX_ROWS
 ) -> str:
     """
-    Add default LIMIT to row-returning queries.
-
-    Existing LIMIT values larger than MAX_ROWS
-    are reduced to MAX_ROWS.
+    Add default LIMIT to queries.
+    Reject negative LIMIT values.
+    Clamp LIMIT values above MAX_ROWS.
     """
 
     sql = sql.strip().rstrip(";").strip()
+
+    # Block negative LIMIT values, e.g. LIMIT -1
+    negative_limit = re.search(
+        r"\bLIMIT\s+-\d+\b",
+        sql,
+        flags=re.IGNORECASE
+    )
+
+    if negative_limit:
+        raise SQLValidationError(
+            "Negative LIMIT is not allowed"
+        )
 
     limit_match = re.search(
         r"\bLIMIT\s+(\d+)\b",
@@ -126,7 +137,9 @@ def apply_limit(
     )
 
     if limit_match:
-        current_limit = int(limit_match.group(1))
+        current_limit = int(
+            limit_match.group(1)
+        )
 
         if current_limit > max_rows:
             start, end = limit_match.span(1)
@@ -137,9 +150,6 @@ def apply_limit(
                 + sql[end:]
             )
 
-        return sql
-
-    if is_aggregate_query(sql):
         return sql
 
     return f"{sql} LIMIT {default_limit}"
