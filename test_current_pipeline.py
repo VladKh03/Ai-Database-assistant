@@ -2,7 +2,6 @@ from database.connection import check_database_connection
 from database.schema import format_schema_for_llm
 from database.validator import validate_select_query, SQLValidationError
 from database.queries import execute_select_query
-
 from tools.read_tools import query_database
 
 from agent.router import route_request
