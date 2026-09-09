@@ -1,0 +1,189 @@
+from agent.prompts import get_system_prompt
+from agent.output_format import AGENT_OUTPUT_PROMPT
+from agent.response_builder import build_natural_response
+
+from llm.model import qwen_model
+from llm.parser import (
+    parse_agent_output,
+    LLMOutputError
+)
+
+from tools.read_tools import query_database
+
+
+ALLOWED_READ_ACTIONS = {
+    "query_database"
+}
+
+
+def build_read_messages(
+    user_query: str
+) -> list[dict]:
+    """
+    Build messages for READ SQL generation
+    """
+
+    system_prompt = (
+        get_system_prompt()
+        + "\n\n"
+        + AGENT_OUTPUT_PROMPT
+        + """
+
+For this request you are in READ mode.
+
+You must:
+- use action "query_database"
+- generate exactly one SELECT query
+- never generate INSERT, UPDATE or DELETE
+- return valid JSON only
+"""
+    )
+
+    return [
+        {
+            "role": "system",
+            "content": system_prompt
+        },
+        {
+            "role": "user",
+            "content": user_query
+        }
+    ]
+
+
+def generate_read_action(
+    user_query: str
+):
+    """
+    Ask Qwen to convert a user question into
+    a structured query_database action
+    """
+
+    messages = build_read_messages(
+        user_query
+    )
+
+    raw_output = qwen_model.generate(
+        messages
+    )
+
+    action = parse_agent_output(
+        raw_output,
+        allowed_actions=ALLOWED_READ_ACTIONS
+    )
+
+    return action
+
+
+def run_read_pipeline(
+    user_query: str
+) -> dict:
+    """
+    Full READ pipeline:
+
+    User
+    -> Qwen
+    -> SELECT
+    -> validation
+    -> SQLite
+    -> result
+    -> Qwen
+    -> natural-language response
+    """
+
+    if not isinstance(user_query, str):
+        return {
+            "success": False,
+            "answer": "User query must be a string."
+        }
+
+    user_query = user_query.strip()
+
+    if not user_query:
+        return {
+            "success": False,
+            "answer": "User query is empty."
+        }
+
+    try:
+        # 1. Qwen generates structured READ action
+        action = generate_read_action(
+            user_query
+        )
+
+        # 2. Extract generated SELECT query
+        sql = action.query
+
+        if not sql:
+            return {
+                "success": False,
+                "answer": (
+                    "The model did not generate "
+                    "a database query."
+                )
+            }
+
+        # 3. Execute through read tool
+        # query_database internally runs SQL validator
+        database_result = query_database(
+            sql
+        )
+
+        # 4. Check database execution
+        if not database_result.get(
+            "success",
+            False
+        ):
+            return {
+                "success": False,
+                "query": sql,
+                "error": database_result.get(
+                    "error"
+                ),
+                "answer": (
+                    "The database query could "
+                    "not be executed."
+                )
+            }
+
+        # 5. Convert database result
+        # into natural-language response
+        answer = build_natural_response(
+            user_query=user_query,
+            tool_result=database_result
+        )
+
+        return {
+            "success": True,
+            "action": action.action,
+            "query": sql,
+            "rows": database_result.get(
+                "rows",
+                []
+            ),
+            "row_count": database_result.get(
+                "row_count",
+                0
+            ),
+            "answer": answer
+        }
+
+    except LLMOutputError as error:
+        return {
+            "success": False,
+            "error": str(error),
+            "answer": (
+                "The model returned an invalid "
+                "structured response."
+            )
+        }
+
+    except Exception as error:
+        return {
+            "success": False,
+            "error": str(error),
+            "answer": (
+                "An error occurred while "
+                "processing the database request."
+            )
+        }

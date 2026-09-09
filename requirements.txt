@@ -1,0 +1,9 @@
+transformers
+accelerate
+torch
+gradio
+fastapi
+uvicorn
+sqlalchemy
+pydantic
+sentencepiece
