@@ -2,7 +2,8 @@ import json
 import re
 from dataclasses import dataclass
 from typing import Any
-
+from pydantic import ValidationError
+from api.schemas import ToolCall
 
 class LLMOutputError(Exception):
     """
@@ -89,40 +90,22 @@ def validate_agent_output(
                 f"Unknown action: {action}"
             )
 
-    if action == "query_database":
-        return validate_read_action(data)
-
-    return validate_tool_action(data)
-
-
-def validate_read_action(
-    data: dict
-) -> AgentAction:
-    """
-    Validate READ action
-    """
-
-    query = data.get("query")
-
-    if not query:
-        raise LLMOutputError(
-            "READ action requires 'query'"
-        )
-
-    if not isinstance(query, str):
-        raise LLMOutputError(
-            "'query' must be a string"
-        )
-
-    if "arguments" in data:
-        raise LLMOutputError(
-            "READ action must not contain 'arguments'"
-        )
+    try:
+        tool_call = ToolCall.model_validate(data)
+    except ValidationError as error:
+        raise LLMOutputError(str(error)) from error
 
     return AgentAction(
-        action="query_database",
-        query=query.strip()
+        action=tool_call.action,
+        query=tool_call.query,
+        arguments=tool_call.arguments
     )
+
+
+def validate_read_action(data: dict) -> AgentAction:
+    if not isinstance(data, dict) or data.get("action") != "query_database":
+        raise LLMOutputError("Expected a query_database action")
+    return validate_agent_output(data)
 
 def parse_agent_output(
     text: str,
@@ -143,30 +126,12 @@ def validate_tool_action(
     data: dict
 ) -> AgentAction:
     """
-    Validate CREATE / UPDATE / DELETE tool action
+    Validate supported CREATE / UPDATE tool action
     """
 
-    arguments = data.get("arguments")
-
-    if arguments is None:
-        raise LLMOutputError(
-            "Tool action requires 'arguments'"
-        )
-
-    if not isinstance(arguments, dict):
-        raise LLMOutputError(
-            "'arguments' must be a JSON object"
-        )
-
-    if "query" in data:
-        raise LLMOutputError(
-            "Tool action must not contain 'query'"
-        )
-
-    return AgentAction(
-        action=data["action"],
-        arguments=arguments
-    )
+    if not isinstance(data, dict) or data.get("action") == "query_database":
+        raise LLMOutputError("Expected a write tool action")
+    return validate_agent_output(data)
 
 def repair_agent_output(
     model,
