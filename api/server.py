@@ -1,8 +1,11 @@
 """Local HTTP interface for the database assistant."""
 
+from uuid import uuid4
+
 from fastapi import FastAPI, HTTPException
 
-from api.schemas import ChatRequest, ChatResponse
+from api.schemas import ChatRequest, ChatResponse, ResetRequest
+from agent.history import conversation_history
 from database.connection import check_database_connection
 from database.schema import get_database_schema
 
@@ -14,10 +17,11 @@ app = FastAPI(title="AI Database Assistant")
 def chat(request: ChatRequest) -> ChatResponse:
     # The model is loaded on the first chat request; health and schema remain
     # available even on a machine without model weights or a GPU.
+    session_id = request.session_id or uuid4().hex
     try:
         from agent.agent import database_agent
 
-        result = database_agent.run(request.message)
+        result = database_agent.run(request.message, session_id=session_id)
     except Exception as error:
         raise HTTPException(
             status_code=503, detail="The assistant is unavailable"
@@ -26,6 +30,7 @@ def chat(request: ChatRequest) -> ChatResponse:
     return ChatResponse(
         answer=result.get("answer", ""),
         action=result.get("action"),
+        session_id=session_id,
     )
 
 
@@ -51,6 +56,10 @@ def confirm() -> dict:
 
 
 @app.post("/reset")
-def reset() -> dict:
-    # The current agent keeps no conversation or pending-operation state.
-    return {"success": True, "cleared": False}
+def reset(request: ResetRequest | None = None) -> dict:
+    if request is None:
+        return {"success": True, "cleared": False}
+    return {
+        "success": True,
+        "cleared": conversation_history.clear(request.session_id),
+    }

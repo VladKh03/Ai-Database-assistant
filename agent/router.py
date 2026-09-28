@@ -1,7 +1,7 @@
 from enum import Enum
 
 from llm.model import qwen_model
-
+from agent.history import format_history
 
 class ActionType(str, Enum):
     READ = "READ"
@@ -93,14 +93,16 @@ GENERAL
 11. Requests that remove records are DELETE.
 
 12. Everything unrelated to database operations is GENERAL.
+
+13. Use recent conversation to resolve references such as "it" or "that product".
+    Classify only the current user request.
 """
 
 
-def route_request(user_message: str) -> ActionType:
-    """
-    Determine the type of user request
-    """
-
+def route_request(
+    user_message: str,
+    history: list[dict[str, str]] | None = None
+) -> ActionType:
     messages = [
         {
             "role": "system",
@@ -108,16 +110,18 @@ def route_request(user_message: str) -> ActionType:
         },
         {
             "role": "user",
-            "content": user_message
+            "content": (
+                format_history(history)
+                + "Current user request:\n"
+                + user_message
+            )
         }
     ]
 
     response = qwen_model.generate(messages)
-
     action = response.strip().upper()
 
     try:
         return ActionType(action)
-
     except ValueError:
         return ActionType.GENERAL

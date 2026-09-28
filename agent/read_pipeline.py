@@ -1,4 +1,5 @@
 from agent.prompts import get_system_prompt
+from agent.history import format_history
 from agent.output_format import AGENT_OUTPUT_PROMPT
 from agent.response_builder import build_natural_response
 
@@ -17,7 +18,8 @@ ALLOWED_READ_ACTIONS = {
 
 
 def build_read_messages(
-    user_query: str
+    user_query: str,
+    history: list[dict[str, str]] | None = None
 ) -> list[dict]:
     """
     Build messages for READ SQL generation
@@ -36,6 +38,7 @@ You must:
 - generate exactly one SELECT query
 - never generate INSERT, UPDATE or DELETE
 - return valid JSON only
+- use recent conversation and tool results to resolve references in the current request
 """
     )
 
@@ -46,16 +49,18 @@ You must:
         },
         {
             "role": "user",
-            "content": user_query
+            "content": format_history(history) + "Current user request:\n" + user_query
         }
     ]
 
 
 def generate_read_action(
-    user_query: str
+    user_query: str,
+    history: list[dict[str, str]] | None = None
 ):
     messages = build_read_messages(
-        user_query
+        user_query,
+        history=history
     )
 
     return generate_and_parse(
@@ -66,7 +71,8 @@ def generate_read_action(
 
 
 def run_read_pipeline(
-    user_query: str
+    user_query: str,
+    history: list[dict[str, str]] | None = None
 ) -> dict:
     """
     Full READ pipeline:
@@ -98,7 +104,8 @@ def run_read_pipeline(
     try:
         # 1. Qwen generates structured READ action
         action = generate_read_action(
-            user_query
+            user_query,
+            history=history
         )
 
         # 2. Extract generated SELECT query
@@ -140,7 +147,8 @@ def run_read_pipeline(
         # into natural-language response
         answer = build_natural_response(
             user_query=user_query,
-            tool_result=database_result
+            tool_result=database_result,
+            history=history
         )
 
         return {

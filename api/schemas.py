@@ -11,6 +11,7 @@ class StrictSchema(BaseModel):
 
 class ChatRequest(StrictSchema):
     message: str = Field(min_length=1)
+    session_id: str | None = Field(default=None, min_length=1, max_length=128)
 
     @model_validator(mode="after")
     def validate_message(self):
@@ -23,7 +24,10 @@ class ChatRequest(StrictSchema):
 class ChatResponse(StrictSchema):
     answer: str
     action: str | None = None
+    session_id: str
 
+class ResetRequest(StrictSchema):
+    session_id: str = Field(min_length=1, max_length=128)
 
 class UpdateCustomerRequest(StrictSchema):
     customer_id: str = Field(min_length=1)

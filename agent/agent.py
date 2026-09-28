@@ -6,6 +6,7 @@ from agent.router import (
 from agent.read_pipeline import (
     run_read_pipeline
 )
+from agent.history import conversation_history, format_history
 
 from llm.model import qwen_model
 
@@ -25,10 +26,12 @@ class DatabaseAgent:
 
     def __init__(self):
         self.model = qwen_model
+        self.history = conversation_history
 
     def run(
         self,
-        user_message: str
+        user_message: str,
+        session_id: str = "default"
     ) -> dict:
         """
         Process user request
@@ -50,37 +53,35 @@ class DatabaseAgent:
                 "answer": "User message is empty."
             }
 
+        recent = self.history.get(session_id)
+
         try:
             action_type = route_request(
-                user_message
+                user_message,
+                history=recent
             )
 
             if action_type == ActionType.READ:
-                return self._handle_read(
+                result = self._handle_read(
+                    user_message, recent
+                )
+            elif action_type == ActionType.CREATE:
+                result = self._handle_create(
                     user_message
                 )
-
-            if action_type == ActionType.CREATE:
-                return self._handle_create(
+            elif action_type == ActionType.UPDATE:
+                result = self._handle_update(
                     user_message
                 )
-
-            if action_type == ActionType.UPDATE:
-                return self._handle_update(
+            elif action_type == ActionType.DELETE:
+                result = self._handle_delete(
                     user_message
                 )
-
-            if action_type == ActionType.DELETE:
-                return self._handle_delete(
-                    user_message
-                )
-
-            return self._handle_general(
-                user_message
-            )
+            else:
+                result = self._handle_general(user_message, recent)
 
         except Exception as error:
-            return {
+            result = {
                 "success": False,
                 "action": None,
                 "error": str(error),
@@ -90,16 +91,21 @@ class DatabaseAgent:
                 )
             }
 
+        self.history.add_turn(session_id, user_message, result)
+        return result
+
     def _handle_read(
         self,
-        user_message: str
+        user_message: str,
+        history: list[dict[str, str]]
     ) -> dict:
         """
         Handle database READ request
         """
 
         result = run_read_pipeline(
-            user_message
+            user_message,
+            history=history
         )
 
         result["request_type"] = "READ"
@@ -169,7 +175,8 @@ class DatabaseAgent:
 
     def _handle_general(
         self,
-        user_message: str
+        user_message: str,
+        history: list[dict[str, str]]
     ) -> dict:
         """
         Handle request that does not require
@@ -190,7 +197,7 @@ unless a database tool was actually executed.
             },
             {
                 "role": "user",
-                "content": user_message
+                "content": format_history(history) + "Current user request:\n" + user_message
             }
         ]
 
