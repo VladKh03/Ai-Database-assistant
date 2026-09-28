@@ -2,15 +2,13 @@ from agent.prompts import get_system_prompt
 from agent.history import format_history
 from agent.output_format import AGENT_OUTPUT_PROMPT
 from agent.response_builder import build_natural_response
+from agent.tool_registry import execute_tool
 
 from llm.model import qwen_model
 from llm.parser import (
     LLMOutputError,
     generate_and_parse
 )
-
-from tools.read_tools import query_database
-
 
 ALLOWED_READ_ACTIONS = {
     "query_database"
@@ -121,10 +119,8 @@ def run_read_pipeline(
             }
 
         # 3. Execute through read tool
-        # query_database internally runs SQL validator
-        database_result = query_database(
-            sql
-        )
+        # Registry dispatches to query_database, which validates the SQL.
+        database_result = execute_tool(action.action, sql=sql)
 
         # 4. Check database execution
         if not database_result.get(

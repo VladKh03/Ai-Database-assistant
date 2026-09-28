@@ -2,14 +2,22 @@ import json
 import re
 from dataclasses import dataclass
 from typing import Any
+
 from pydantic import ValidationError
+
 from api.schemas import ToolCall
+from agent.tool_registry import UnknownToolError, get_tool
+
 
 class LLMOutputError(Exception):
     """
     Raised when LLM output cannot be parsed or validated
     """
     pass
+
+
+class UnknownActionError(LLMOutputError):
+    """Raised for an action outside the executable tool allowlist."""
 
 
 @dataclass
@@ -84,11 +92,13 @@ def validate_agent_output(
             "'action' must be a string"
         )
 
-    if allowed_actions is not None:
-        if action not in allowed_actions:
-            raise LLMOutputError(
-                f"Unknown action: {action}"
-            )
+    try:
+        get_tool(action)
+    except UnknownToolError as error:
+        raise UnknownActionError(str(error)) from error
+
+    if allowed_actions is not None and action not in allowed_actions:
+        raise UnknownActionError(f"Action not allowed in this mode: {action}")
 
     try:
         tool_call = ToolCall.model_validate(data)
@@ -102,10 +112,17 @@ def validate_agent_output(
     )
 
 
-def validate_read_action(data: dict) -> AgentAction:
+def validate_read_action(
+    data: dict
+) -> AgentAction:
+    """
+    Validate READ action
+    """
+
     if not isinstance(data, dict) or data.get("action") != "query_database":
         raise LLMOutputError("Expected a query_database action")
     return validate_agent_output(data)
+
 
 def parse_agent_output(
     text: str,
@@ -122,6 +139,7 @@ def parse_agent_output(
         allowed_actions=allowed_actions
     )
 
+
 def validate_tool_action(
     data: dict
 ) -> AgentAction:
@@ -132,6 +150,7 @@ def validate_tool_action(
     if not isinstance(data, dict) or data.get("action") == "query_database":
         raise LLMOutputError("Expected a write tool action")
     return validate_agent_output(data)
+
 
 def repair_agent_output(
     model,
@@ -189,6 +208,10 @@ def generate_and_parse(
             raw_output,
             allowed_actions
         )
+
+    except UnknownActionError:
+        # Never turn an unregistered action into an executable one via repair.
+        raise
 
     except LLMOutputError as first_error:
         repaired_output = repair_agent_output(
