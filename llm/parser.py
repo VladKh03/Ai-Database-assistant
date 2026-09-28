@@ -112,18 +112,6 @@ def validate_agent_output(
     )
 
 
-def validate_read_action(
-    data: dict
-) -> AgentAction:
-    """
-    Validate READ action
-    """
-
-    if not isinstance(data, dict) or data.get("action") != "query_database":
-        raise LLMOutputError("Expected a query_database action")
-    return validate_agent_output(data)
-
-
 def parse_agent_output(
     text: str,
     allowed_actions: set[str] | None = None
@@ -138,19 +126,6 @@ def parse_agent_output(
         data,
         allowed_actions=allowed_actions
     )
-
-
-def validate_tool_action(
-    data: dict
-) -> AgentAction:
-    """
-    Validate supported CREATE / UPDATE tool action
-    """
-
-    if not isinstance(data, dict) or data.get("action") == "query_database":
-        raise LLMOutputError("Expected a write tool action")
-    return validate_agent_output(data)
-
 
 def repair_agent_output(
     model,

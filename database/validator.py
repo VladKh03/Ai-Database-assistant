@@ -24,16 +24,6 @@ FORBIDDEN_KEYWORDS = {
     "VACUUM"
 }
 
-
-AGGREGATE_FUNCTIONS = {
-    "COUNT",
-    "SUM",
-    "AVG",
-    "MIN",
-    "MAX"
-}
-
-
 def remove_sql_comments(sql: str) -> str:
     sql = re.sub(
         r"--.*?$",
@@ -86,23 +76,6 @@ def check_forbidden_keywords(sql: str) -> None:
             raise SQLValidationError(
                 f"Forbidden SQL keyword: {keyword}"
             )
-
-
-def is_aggregate_query(sql: str) -> bool:
-    """
-    Check whether query mainly returns an aggregate result
-    """
-
-    uppercase_sql = sql.upper()
-
-    for function in AGGREGATE_FUNCTIONS:
-        if re.search(
-            rf"\b{function}\s*\(",
-            uppercase_sql
-        ):
-            return True
-
-    return False
 
 
 def apply_limit(

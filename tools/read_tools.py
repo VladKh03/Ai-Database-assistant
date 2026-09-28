@@ -1,26 +1,20 @@
-from database.queries import execute_select_query
-from database.validator import SQLValidationError
+from database.repositories import QueryRepository
 from api.schemas import ToolResult
 
 
-def query_database(sql: str) -> dict:
+def query_database(sql: str, repository: QueryRepository | None = None) -> dict:
     """
     Execute a validated read-only database query.
     """
 
     try:
-        rows = execute_select_query(sql)
+        rows = (repository or QueryRepository()).select(sql)
 
         return ToolResult(
             success=True,
             rows=rows,
             row_count=len(rows)
         ).model_dump(exclude_none=True)
-
-    except SQLValidationError as error:
-        return ToolResult(success=False, error=str(error)).model_dump(
-            exclude_none=True
-        )
 
     except Exception as error:
         return ToolResult(success=False, error=str(error)).model_dump(
