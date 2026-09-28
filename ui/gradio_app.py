@@ -91,15 +91,17 @@ def clear_chat(session_id: str | None) -> tuple[str, list[dict], None]:
 
 
 def build_app() -> gr.Blocks:
-    with gr.Blocks() as demo:
+    with gr.Blocks(fill_height=True, fill_width=True) as demo:
         gr.Markdown("# AI Database Assistant")
-        chatbot = gr.Chatbot(label="Chat", height=500)
+        chatbot = gr.Chatbot(label="Chat", scale=1, min_height=300)
         session_id = gr.State(value=None)
 
         with gr.Row():
             message = gr.Textbox(
                 label="Message",
                 placeholder="Show first order of client ALFKI",
+                lines=2,
+                max_lines=4,
                 scale=8,
             )
             send = gr.Button("Send", variant="primary", scale=1)
