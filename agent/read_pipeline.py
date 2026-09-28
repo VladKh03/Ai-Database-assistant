@@ -4,7 +4,7 @@ from agent.response_builder import build_natural_response
 
 from llm.model import qwen_model
 from llm.parser import (
-    LLMOutputError
+    LLMOutputError,
     generate_and_parse
 )
 
