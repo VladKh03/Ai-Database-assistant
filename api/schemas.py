@@ -3,7 +3,7 @@
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-
+from datetime import date, datetime
 
 class StrictSchema(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -104,6 +104,83 @@ class CreateCustomerRequest(StrictSchema):
             raise ValueError("Required customer fields must not be empty")
         return value
 
+class DeleteCustomerRequest(StrictSchema):
+    customer_id: str = Field(min_length=1)
+
+    @field_validator("customer_id")
+    @classmethod
+    def nonempty_customer_id(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Customer ID must not be empty")
+        return value
+
+
+class CreateProductRequest(StrictSchema):
+    product_name: str = Field(min_length=1)
+    supplier_id: int | None = Field(default=None, gt=0)
+    category_id: int | None = Field(default=None, gt=0)
+    quantity_per_unit: str | None = None
+    unit_price: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    units_in_stock: int | None = Field(default=None, ge=0)
+    units_on_order: int | None = Field(default=None, ge=0)
+    reorder_level: int | None = Field(default=None, ge=0)
+    discontinued: bool | None = None
+
+    @field_validator("product_name")
+    @classmethod
+    def nonempty_product_name(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Product name must not be empty")
+        return value
+
+
+class CreateOrderRequest(StrictSchema):
+    customer_id: str = Field(min_length=1)
+    employee_id: int | None = Field(default=None, gt=0)
+    order_date: date | datetime | None = None
+    required_date: date | datetime | None = None
+    shipped_date: date | datetime | None = None
+    ship_via: int | None = Field(default=None, gt=0)
+    freight: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    ship_name: str | None = None
+    ship_address: str | None = None
+    ship_city: str | None = None
+    ship_region: str | None = None
+    ship_postal_code: str | None = None
+    ship_country: str | None = None
+
+    @field_validator("customer_id")
+    @classmethod
+    def nonempty_customer_id(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Customer ID must not be empty")
+        return value
+
+
+class UpdateOrderRequest(StrictSchema):
+    order_id: int = Field(gt=0)
+    customer_id: str | None = None
+    employee_id: int | None = Field(default=None, gt=0)
+    order_date: date | datetime | None = None
+    required_date: date | datetime | None = None
+    shipped_date: date | datetime | None = None
+    ship_via: int | None = Field(default=None, gt=0)
+    freight: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    ship_name: str | None = None
+    ship_address: str | None = None
+    ship_city: str | None = None
+    ship_region: str | None = None
+    ship_postal_code: str | None = None
+    ship_country: str | None = None
+
+    @model_validator(mode="after")
+    def require_change(self):
+        if not (self.model_fields_set - {"order_id"}):
+            raise ValueError("Provide at least one order field to update")
+        return self
 
 class ConfirmationRequest(StrictSchema):
     operation_id: str = Field(min_length=1)
@@ -114,12 +191,17 @@ WRITE_ARGUMENT_SCHEMAS = {
     "update_customer": UpdateCustomerRequest,
     "update_product": UpdateProductRequest,
     "create_customer": CreateCustomerRequest,
+    "delete_customer": DeleteCustomerRequest,
+    "create_product": CreateProductRequest,
+    "create_order": CreateOrderRequest,
+    "update_order": UpdateOrderRequest,
 }
 
 
 class ToolCall(StrictSchema):
     action: Literal[
-        "query_database", "update_customer", "update_product", "create_customer"
+        "query_database", "create_customer", "update_customer", "delete_customer",
+        "create_product", "update_product", "create_order", "update_order",
     ]
     query: str | None = None
     arguments: dict[str, Any] | None = None
@@ -149,4 +231,5 @@ class ToolResult(StrictSchema):
     rows: list[dict[str, Any]] | None = None
     row_count: int | None = Field(default=None, ge=0)
     rowcount: int | None = Field(default=None, ge=0)
+    record_id: str | int | None = None
     error: str | None = None

@@ -45,39 +45,6 @@ def get_session():
         db.close()
 
 
-def execute_write(query: str, params: dict | None = None):
-    """
-    Execute INSERT, UPDATE or DELETE
-
-    Automatically commits transaction
-    Rolls back if an error occurs
-    """
-    params = params or {}
-
-    connection = engine.connect()
-    transaction = connection.begin()
-
-    try:
-        result = connection.execute(
-            text(query),
-            params
-        )
-
-        transaction.commit()
-
-        return {
-            "success": True,
-            "rowcount": result.rowcount
-        }
-
-    except Exception:
-        transaction.rollback()
-        raise
-
-    finally:
-        connection.close()
-
-
 def check_database_connection():
     """
     Check whether SQLite database is available
