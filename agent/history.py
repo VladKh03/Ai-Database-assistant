@@ -31,9 +31,9 @@ class ConversationHistory:
     def add_turn(self, session_id: str, user_message: str, result: dict) -> None:
         messages = [{"role": "user", "content": user_message[:1200]}]
 
-        if result.get("query"):
+        if result.get("action") and result.get("rows") is not None:
             tool_result = {
-                "query": str(result["query"])[:500],
+                "action": result["action"],
                 "success": result.get("success", False),
                 "row_count": result.get("row_count"),
                 "rows": [
@@ -41,6 +41,8 @@ class ConversationHistory:
                     for row in result.get("rows", [])[:3]
                 ],
             }
+            if result.get("query"):
+                tool_result["query"] = str(result["query"])[:500]
             if result.get("error"):
                 tool_result["error"] = str(result["error"])[:200]
             messages.append({
@@ -48,10 +50,7 @@ class ConversationHistory:
                 "content": json.dumps(tool_result, ensure_ascii=False)[:1200],
             })
 
-        messages.append({
-            "role": "assistant",
-            "content": str(result.get("answer", ""))[:1200],
-        })
+        messages.append({"role": "assistant", "content": str(result.get("answer", ""))[:1200]})
 
         with self._lock:
             history = self._sessions.setdefault(

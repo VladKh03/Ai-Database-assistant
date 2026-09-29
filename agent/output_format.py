@@ -12,6 +12,20 @@ For READ operations return:
   "query": "SELECT ..."
 }
 
+For an exact customer ID return:
+
+{
+  "action": "get_customer",
+  "arguments": {"customer_id": "ALFKI"}
+}
+
+For a customer search return one or more filters:
+
+{
+  "action": "search_customers",
+  "arguments": {"name": "Alfreds", "country": "Germany"}
+}
+
 For CREATE, UPDATE or DELETE operations return:
 
 {
@@ -25,11 +39,10 @@ Rules:
 
 1. Return exactly one JSON object.
 
-2. READ requests must use:
-   "action": "query_database"
+2. General READ requests must use "query_database".
+   Exact customer lookup may use "get_customer"; customer search may use "search_customers".
 
-3. READ requests must include:
-   "query"
+3. "query_database" requires "query". Customer tools require "arguments".
 
 4. CREATE, UPDATE and DELETE requests must include:
    "arguments"

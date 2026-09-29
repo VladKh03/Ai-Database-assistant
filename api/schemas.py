@@ -26,8 +26,44 @@ class ChatResponse(StrictSchema):
     action: str | None = None
     session_id: str
 
+
 class ResetRequest(StrictSchema):
     session_id: str = Field(min_length=1, max_length=128)
+
+
+class GetCustomerRequest(StrictSchema):
+    customer_id: str = Field(min_length=1)
+
+    @field_validator("customer_id")
+    @classmethod
+    def nonempty_customer_id(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Customer ID must not be empty")
+        return value
+
+
+class SearchCustomersRequest(StrictSchema):
+    name: str | None = None
+    country: str | None = None
+    city: str | None = None
+
+    @field_validator("name", "country", "city")
+    @classmethod
+    def nonempty_filter(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = value.strip()
+        if not value:
+            raise ValueError("Search filters must not be empty")
+        return value
+
+    @model_validator(mode="after")
+    def require_filter(self):
+        if not any((self.name, self.country, self.city)):
+            raise ValueError("Provide name, country, or city")
+        return self
+
 
 class UpdateCustomerRequest(StrictSchema):
     customer_id: str = Field(min_length=1)
@@ -197,10 +233,15 @@ WRITE_ARGUMENT_SCHEMAS = {
     "update_order": UpdateOrderRequest,
 }
 
+READ_ARGUMENT_SCHEMAS = {
+    "get_customer": GetCustomerRequest,
+    "search_customers": SearchCustomersRequest,
+}
 
 class ToolCall(StrictSchema):
     action: Literal[
-        "query_database", "create_customer", "update_customer", "delete_customer",
+        "query_database", "get_customer", "search_customers",
+        "create_customer", "update_customer", "delete_customer",
         "create_product", "update_product", "create_order", "update_order",
     ]
     query: str | None = None
@@ -214,14 +255,19 @@ class ToolCall(StrictSchema):
             if "arguments" in self.model_fields_set:
                 raise ValueError("READ action must not contain arguments")
             self.query = self.query.strip()
+        elif self.action in READ_ARGUMENT_SCHEMAS:
+            if "query" in self.model_fields_set:
+                raise ValueError("Customer READ action must not contain a query")
+            if self.arguments is None:
+                raise ValueError("Customer READ action requires arguments")
+            request = READ_ARGUMENT_SCHEMAS[self.action].model_validate(self.arguments)
+            self.arguments = request.model_dump(exclude_none=True)
         else:
             if "query" in self.model_fields_set:
                 raise ValueError("Write action must not contain a query")
             if self.arguments is None:
                 raise ValueError("Write action requires arguments")
-            request = WRITE_ARGUMENT_SCHEMAS[self.action].model_validate(
-                self.arguments
-            )
+            request = WRITE_ARGUMENT_SCHEMAS[self.action].model_validate(self.arguments)
             self.arguments = request.model_dump(exclude_unset=True)
         return self
 

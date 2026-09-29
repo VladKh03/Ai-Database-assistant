@@ -4,13 +4,19 @@ from collections.abc import Callable
 from typing import Any
 
 from tools.read_tools import query_database
-from tools.write_tools import (
+from tools.customer_tools import (
+    get_customer, search_customers,
     create_customer, update_customer, delete_customer,
+)
+from tools.write_tools import (
     create_product, update_product, create_order, update_order,
 )
 
+
 TOOLS: dict[str, Callable[..., dict]] = {
     "query_database": query_database,
+    "get_customer": get_customer,
+    "search_customers": search_customers,
     "create_customer": create_customer,
     "update_customer": update_customer,
     "delete_customer": delete_customer,

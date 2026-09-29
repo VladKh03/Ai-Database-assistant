@@ -11,7 +11,7 @@ from llm.parser import (
 )
 
 ALLOWED_READ_ACTIONS = {
-    "query_database"
+    "query_database", "get_customer", "search_customers"
 }
 
 
@@ -20,7 +20,7 @@ def build_read_messages(
     history: list[dict[str, str]] | None = None
 ) -> list[dict]:
     """
-    Build messages for READ SQL generation
+    Build messages for validated READ tool selection
     """
 
     system_prompt = (
@@ -32,11 +32,14 @@ def build_read_messages(
 For this request you are in READ mode.
 
 You must:
-- use action "query_database"
-- generate exactly one SELECT query
+- use "get_customer" with {"customer_id": "..."} for an exact customer ID
+- use "search_customers" with at least one of name, country, city to find customers
+- otherwise use "query_database" and generate exactly one SELECT query
 - never generate INSERT, UPDATE or DELETE
 - return valid JSON only
 - use recent conversation and tool results to resolve references in the current request
+
+For get_customer and search_customers, return an "arguments" object, not a "query".
 """
     )
 
@@ -77,8 +80,8 @@ def run_read_pipeline(
 
     User
     -> Qwen
-    -> SELECT
-    -> validation
+    -> SELECT or fixed customer lookup
+    -> tool validation
     -> SQLite
     -> result
     -> Qwen
@@ -106,30 +109,20 @@ def run_read_pipeline(
             history=history
         )
 
-        # 2. Extract generated SELECT query
-        sql = action.query
+        # 2. Dispatch either validated SELECT or fixed customer lookup.
+        if action.action == "query_database":
+            database_result = execute_tool(action.action, sql=action.query)
+        else:
+            database_result = execute_tool(action.action, **action.arguments)
 
-        if not sql:
-            return {
-                "success": False,
-                "answer": (
-                    "The model did not generate "
-                    "a database query."
-                )
-            }
-
-        # 3. Execute through read tool
-        # Registry dispatches to query_database, which validates the SQL.
-        database_result = execute_tool(action.action, sql=sql)
-
-        # 4. Check database execution
+        # 3. Check database execution
         if not database_result.get(
             "success",
             False
         ):
             return {
                 "success": False,
-                "query": sql,
+                "query": action.query,
                 "error": database_result.get(
                     "error"
                 ),
@@ -139,7 +132,7 @@ def run_read_pipeline(
                 )
             }
 
-        # 5. Convert database result
+        # 4. Convert database result
         # into natural-language response
         answer = build_natural_response(
             user_query=user_query,
@@ -150,7 +143,7 @@ def run_read_pipeline(
         return {
             "success": True,
             "action": action.action,
-            "query": sql,
+            "query": action.query,
             "rows": database_result.get(
                 "rows",
                 []
