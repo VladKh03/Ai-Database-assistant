@@ -7,6 +7,7 @@ from agent.read_pipeline import (
     run_read_pipeline
 )
 from agent.history import conversation_history, format_history
+from agent.write_pipeline import run_write_pipeline
 
 from llm.model import qwen_model
 
@@ -66,17 +67,11 @@ class DatabaseAgent:
                     user_message, recent
                 )
             elif action_type == ActionType.CREATE:
-                result = self._handle_create(
-                    user_message
-                )
+                result = self._handle_write(user_message, "CREATE", recent)
             elif action_type == ActionType.UPDATE:
-                result = self._handle_update(
-                    user_message
-                )
+                result = self._handle_write(user_message, "UPDATE", recent)
             elif action_type == ActionType.DELETE:
-                result = self._handle_delete(
-                    user_message
-                )
+                result = self._handle_write(user_message, "DELETE", recent)
             else:
                 result = self._handle_general(user_message, recent)
 
@@ -112,66 +107,12 @@ class DatabaseAgent:
 
         return result
 
-    def _handle_create(
-        self,
-        user_message: str
+    def _handle_write(
+        self, user_message: str, request_type: str,
+        history: list[dict[str, str]],
     ) -> dict:
-        """
-        Handle CREATE request.
-
-        Tool Registry will be connected later.
-        """
-
-        return {
-            "success": False,
-            "request_type": "CREATE",
-            "action": None,
-            "answer": (
-                "CREATE operations are not "
-                "implemented yet."
-            )
-        }
-
-    def _handle_update(
-        self,
-        user_message: str
-    ) -> dict:
-        """
-        Handle UPDATE request.
-
-        Tool Registry will be connected later.
-        """
-
-        return {
-            "success": False,
-            "request_type": "UPDATE",
-            "action": None,
-            "answer": (
-                "UPDATE operations are not "
-                "implemented yet."
-            )
-        }
-
-    def _handle_delete(
-        self,
-        user_message: str
-    ) -> dict:
-        """
-        Handle DELETE request.
-
-        Confirmation and Tool Registry
-        will be connected later.
-        """
-
-        return {
-            "success": False,
-            "request_type": "DELETE",
-            "action": None,
-            "answer": (
-                "DELETE operations are not "
-                "implemented yet."
-            )
-        }
+        """Execute one validated CREATE, UPDATE, or DELETE action."""
+        return run_write_pipeline(user_message, request_type, history)
 
     def _handle_general(
         self,

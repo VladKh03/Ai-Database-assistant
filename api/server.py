@@ -51,7 +51,7 @@ def schema() -> dict:
 
 @app.post("/confirm")
 def confirm() -> dict:
-    # Write operations are not implemented yet, so nothing can be pending.
+    # The current write pipeline commits immediately; nothing can be pending.
     raise HTTPException(status_code=409, detail="No pending operation to confirm")
 
 

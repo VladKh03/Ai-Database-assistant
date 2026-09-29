@@ -49,6 +49,23 @@ class ConversationHistory:
                 "role": "tool",
                 "content": json.dumps(tool_result, ensure_ascii=False)[:1200],
             })
+        elif result.get("action") and result.get("request_type") in {"CREATE", "UPDATE", "DELETE"}:
+            tool_result = {
+                "action": result["action"],
+                "arguments": {
+                    str(key): compact_value(value)
+                    for key, value in (result.get("arguments") or {}).items()
+                },
+                "success": result.get("success", False),
+                "rowcount": result.get("rowcount", 0),
+                "record_id": result.get("record_id"),
+            }
+            if result.get("error"):
+                tool_result["error"] = str(result["error"])[:200]
+            messages.append({
+                "role": "tool",
+                "content": json.dumps(tool_result, ensure_ascii=False)[:1200],
+            })
 
         messages.append({"role": "assistant", "content": str(result.get("answer", ""))[:1200]})
 
