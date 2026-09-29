@@ -12,7 +12,7 @@ from llm.parser import LLMOutputError, generate_and_parse
 WRITE_ACTIONS = {
     "CREATE": {"create_customer", "create_product", "create_order"},
     "UPDATE": {"update_customer", "update_product", "update_order"},
-    "DELETE": {"delete_customer", "delete_product"},
+    "DELETE": {"delete_customer", "delete_product", "delete_order"},
 }
 
 WRITE_TOOL_GUIDE = """
@@ -31,8 +31,12 @@ Available write tools and their arguments:
 - delete_product: product_id
 - create_order: customer_id; optional employee_id, order_date, required_date,
   shipped_date, ship_via, freight, ship_name, ship_address, ship_city,
-  ship_region, ship_postal_code, ship_country
+  ship_region, ship_postal_code, ship_country, items. Each item requires
+  product_id OR product_name and quantity; unit_price and discount (0 to 1)
+  are optional. If price is omitted, the tool uses the product's current price.
+  Example: {"customer_id":"ALFKI","items":[{"product_name":"Chai","quantity":2}]}.
 - update_order: order_id and at least one order field to change
+- delete_order: order_id; its Order Details are deleted in the same transaction
 
 Return one JSON object with action and arguments. Never return SQL.
 Only include fields the user actually supplied. Never invent missing IDs or values.

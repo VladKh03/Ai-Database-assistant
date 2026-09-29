@@ -227,6 +227,30 @@ class CreateProductRequest(StrictSchema):
         return value
 
 
+class OrderItemRequest(StrictSchema):
+    product_id: int | None = Field(default=None, gt=0)
+    product_name: str | None = Field(default=None, min_length=1)
+    quantity: int = Field(gt=0)
+    unit_price: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    discount: float = Field(default=0, ge=0, le=1, allow_inf_nan=False)
+
+    @field_validator("product_name")
+    @classmethod
+    def nonempty_product_name(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = value.strip()
+        if not value:
+            raise ValueError("Product name must not be empty")
+        return value
+
+    @model_validator(mode="after")
+    def require_one_product_reference(self):
+        if (self.product_id is None) == (self.product_name is None):
+            raise ValueError("Provide exactly one of product_id or product_name")
+        return self
+
+
 class CreateOrderRequest(StrictSchema):
     customer_id: str = Field(min_length=1)
     employee_id: int | None = Field(default=None, gt=0)
@@ -241,6 +265,7 @@ class CreateOrderRequest(StrictSchema):
     ship_region: str | None = None
     ship_postal_code: str | None = None
     ship_country: str | None = None
+    items: list[OrderItemRequest] | None = Field(default=None, min_length=1)
 
     @field_validator("customer_id")
     @classmethod
@@ -249,6 +274,26 @@ class CreateOrderRequest(StrictSchema):
         if not value:
             raise ValueError("Customer ID must not be empty")
         return value
+
+
+class GetOrderRequest(StrictSchema):
+    order_id: int = Field(gt=0)
+
+
+class GetCustomerOrdersRequest(StrictSchema):
+    customer_id: str = Field(min_length=1)
+
+    @field_validator("customer_id")
+    @classmethod
+    def nonempty_customer_id(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Customer ID must not be empty")
+        return value
+
+
+class DeleteOrderRequest(StrictSchema):
+    order_id: int = Field(gt=0)
 
 
 class UpdateOrderRequest(StrictSchema):
@@ -288,6 +333,7 @@ WRITE_ARGUMENT_SCHEMAS = {
     "delete_product": DeleteProductRequest,
     "create_order": CreateOrderRequest,
     "update_order": UpdateOrderRequest,
+    "delete_order": DeleteOrderRequest,
 }
 
 READ_ARGUMENT_SCHEMAS = {
@@ -295,6 +341,8 @@ READ_ARGUMENT_SCHEMAS = {
     "search_customers": SearchCustomersRequest,
     "get_product": GetProductRequest,
     "search_products": SearchProductsRequest,
+    "get_order": GetOrderRequest,
+    "get_customer_orders": GetCustomerOrdersRequest,
 }
 
 
@@ -302,9 +350,10 @@ class ToolCall(StrictSchema):
     action: Literal[
         "query_database", "get_customer", "search_customers",
         "get_product", "search_products",
+        "get_order", "get_customer_orders",
         "create_customer", "update_customer", "delete_customer",
         "create_product", "update_product", "delete_product",
-        "create_order", "update_order",
+        "create_order", "update_order", "delete_order",
     ]
     query: str | None = None
     arguments: dict[str, Any] | None = None

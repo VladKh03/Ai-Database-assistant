@@ -40,6 +40,20 @@ For a product name search return:
   "arguments": {"name": "Chai"}
 }
 
+For an order with its items return:
+
+{
+  "action": "get_order",
+  "arguments": {"order_id": 10248}
+}
+
+For a customer's orders return:
+
+{
+  "action": "get_customer_orders",
+  "arguments": {"customer_id": "ALFKI"}
+}
+
 For CREATE, UPDATE or DELETE operations return:
 
 {
@@ -56,6 +70,7 @@ Rules:
 2. General READ requests must use "query_database".
    Customer lookup/search may use "get_customer" or "search_customers".
    Product lookup/search may use "get_product" or "search_products".
+   Order lookup may use "get_order" or "get_customer_orders".
 
 3. "query_database" requires "query". Fixed read tools require "arguments".
 

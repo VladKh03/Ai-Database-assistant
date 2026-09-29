@@ -13,6 +13,7 @@ from llm.parser import (
 ALLOWED_READ_ACTIONS = {
     "query_database", "get_customer", "search_customers",
     "get_product", "search_products",
+    "get_order", "get_customer_orders",
 }
 
 
@@ -37,12 +38,14 @@ You must:
 - use "search_customers" with at least one of name, country, city to find customers
 - use "get_product" with {"product_id": 1} for an exact product ID
 - use "search_products" with name or category_id to find products
+- use "get_order" with {"order_id": 10248} to show one order and its items
+- use "get_customer_orders" with {"customer_id": "ALFKI"} to list a customer's orders
 - otherwise use "query_database" and generate exactly one SELECT query
 - never generate INSERT, UPDATE or DELETE
 - return valid JSON only
 - use recent conversation and tool results to resolve references in the current request
 
-For fixed customer and product tools, return an "arguments" object, not a "query".
+For fixed customer, product and order tools, return an "arguments" object, not a "query".
 """
     )
 

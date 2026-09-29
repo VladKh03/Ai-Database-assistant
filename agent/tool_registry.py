@@ -12,8 +12,9 @@ from tools.product_tools import (
     get_product, search_products,
     create_product, update_product, delete_product,
 )
-from tools.write_tools import (
-    create_order, update_order,
+from tools.order_tools import (
+    get_order, get_customer_orders,
+    create_order, update_order, delete_order,
 )
 
 
@@ -23,6 +24,8 @@ TOOLS: dict[str, Callable[..., dict]] = {
     "search_customers": search_customers,
     "get_product": get_product,
     "search_products": search_products,
+    "get_order": get_order,
+    "get_customer_orders": get_customer_orders,
     "create_customer": create_customer,
     "update_customer": update_customer,
     "delete_customer": delete_customer,
@@ -31,6 +34,7 @@ TOOLS: dict[str, Callable[..., dict]] = {
     "delete_product": delete_product,
     "create_order": create_order,
     "update_order": update_order,
+    "delete_order": delete_order,
 }
 
 
