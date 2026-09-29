@@ -1,9 +1,10 @@
 """Validated request, response and tool payloads."""
 
+from datetime import date, datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-from datetime import date, datetime
+
 
 class StrictSchema(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -65,6 +66,38 @@ class SearchCustomersRequest(StrictSchema):
         return self
 
 
+class GetProductRequest(StrictSchema):
+    product_id: int = Field(gt=0)
+
+
+class SearchProductsRequest(StrictSchema):
+    name: str | None = None
+    category_id: int | None = Field(default=None, gt=0)
+    exact_name: bool = False
+
+    @field_validator("name")
+    @classmethod
+    def nonempty_name(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = value.strip()
+        if not value:
+            raise ValueError("Product name must not be empty")
+        return value
+
+    @model_validator(mode="after")
+    def require_filter(self):
+        if self.name is None and self.category_id is None:
+            raise ValueError("Provide a name or category_id")
+        if self.exact_name and self.name is None:
+            raise ValueError("Exact name search requires a name")
+        return self
+
+
+class DeleteProductRequest(StrictSchema):
+    product_id: int = Field(gt=0)
+
+
 class UpdateCustomerRequest(StrictSchema):
     customer_id: str = Field(min_length=1)
     company_name: str | None = None
@@ -93,8 +126,7 @@ class UpdateCustomerRequest(StrictSchema):
         return self
 
 
-class UpdateProductRequest(StrictSchema):
-    product_id: int = Field(gt=0)
+class ProductChanges(StrictSchema):
     product_name: str | None = Field(default=None, min_length=1)
     supplier_id: int | None = Field(default=None, gt=0)
     category_id: int | None = Field(default=None, gt=0)
@@ -112,9 +144,31 @@ class UpdateProductRequest(StrictSchema):
             raise ValueError("Product name must not be empty")
         return value.strip()
 
+
+class UpdateProductRequest(ProductChanges):
+    product_id: int = Field(gt=0)
+
     @model_validator(mode="after")
     def require_change(self):
         if not (self.model_fields_set - {"product_id"}):
+            raise ValueError("Provide at least one product field to update")
+        return self
+
+
+class UpdateProductByNameRequest(ProductChanges):
+    lookup_name: str = Field(min_length=1)
+
+    @field_validator("lookup_name")
+    @classmethod
+    def nonempty_lookup_name(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Lookup name must not be empty")
+        return value
+
+    @model_validator(mode="after")
+    def require_change(self):
+        if not (self.model_fields_set - {"lookup_name"}):
             raise ValueError("Provide at least one product field to update")
         return self
 
@@ -139,6 +193,7 @@ class CreateCustomerRequest(StrictSchema):
         if not value:
             raise ValueError("Required customer fields must not be empty")
         return value
+
 
 class DeleteCustomerRequest(StrictSchema):
     customer_id: str = Field(min_length=1)
@@ -218,6 +273,7 @@ class UpdateOrderRequest(StrictSchema):
             raise ValueError("Provide at least one order field to update")
         return self
 
+
 class ConfirmationRequest(StrictSchema):
     operation_id: str = Field(min_length=1)
     confirmed: bool
@@ -229,6 +285,7 @@ WRITE_ARGUMENT_SCHEMAS = {
     "create_customer": CreateCustomerRequest,
     "delete_customer": DeleteCustomerRequest,
     "create_product": CreateProductRequest,
+    "delete_product": DeleteProductRequest,
     "create_order": CreateOrderRequest,
     "update_order": UpdateOrderRequest,
 }
@@ -236,13 +293,18 @@ WRITE_ARGUMENT_SCHEMAS = {
 READ_ARGUMENT_SCHEMAS = {
     "get_customer": GetCustomerRequest,
     "search_customers": SearchCustomersRequest,
+    "get_product": GetProductRequest,
+    "search_products": SearchProductsRequest,
 }
+
 
 class ToolCall(StrictSchema):
     action: Literal[
         "query_database", "get_customer", "search_customers",
+        "get_product", "search_products",
         "create_customer", "update_customer", "delete_customer",
-        "create_product", "update_product", "create_order", "update_order",
+        "create_product", "update_product", "delete_product",
+        "create_order", "update_order",
     ]
     query: str | None = None
     arguments: dict[str, Any] | None = None
@@ -257,9 +319,9 @@ class ToolCall(StrictSchema):
             self.query = self.query.strip()
         elif self.action in READ_ARGUMENT_SCHEMAS:
             if "query" in self.model_fields_set:
-                raise ValueError("Customer READ action must not contain a query")
+                raise ValueError("Fixed READ action must not contain a query")
             if self.arguments is None:
-                raise ValueError("Customer READ action requires arguments")
+                raise ValueError("Fixed READ action requires arguments")
             request = READ_ARGUMENT_SCHEMAS[self.action].model_validate(self.arguments)
             self.arguments = request.model_dump(exclude_none=True)
         else:
@@ -267,7 +329,12 @@ class ToolCall(StrictSchema):
                 raise ValueError("Write action must not contain a query")
             if self.arguments is None:
                 raise ValueError("Write action requires arguments")
-            request = WRITE_ARGUMENT_SCHEMAS[self.action].model_validate(self.arguments)
+            schema = (
+                UpdateProductByNameRequest
+                if self.action == "update_product" and "lookup_name" in self.arguments
+                else WRITE_ARGUMENT_SCHEMAS[self.action]
+            )
+            request = schema.model_validate(self.arguments)
             self.arguments = request.model_dump(exclude_unset=True)
         return self
 

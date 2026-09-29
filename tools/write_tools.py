@@ -1,26 +1,10 @@
-"""Validated product and order write tools; SQL is owned by repositories."""
+"""Validated order write tools; SQL is owned by repositories."""
 
 from api.schemas import (
-    CreateProductRequest, UpdateProductRequest,
     CreateOrderRequest, UpdateOrderRequest,
 )
-from database.repositories import ProductRepository, OrderRepository
+from database.repositories import OrderRepository
 from tools._write_helper import write_result
-
-
-def create_product(*, repository: ProductRepository | None = None, **arguments) -> dict:
-    repo = repository if repository is not None else ProductRepository()
-    return write_result(CreateProductRequest, repo.create, arguments)
-
-
-def update_product(*, repository: ProductRepository | None = None, **arguments) -> dict:
-    repo = repository if repository is not None else ProductRepository()
-
-    def update(data: dict) -> dict:
-        product_id = data.pop("product_id")
-        return repo.update(product_id, data)
-
-    return write_result(UpdateProductRequest, update, arguments)
 
 
 def create_order(*, repository: OrderRepository | None = None, **arguments) -> dict:

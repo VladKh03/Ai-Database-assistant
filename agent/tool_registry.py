@@ -8,8 +8,12 @@ from tools.customer_tools import (
     get_customer, search_customers,
     create_customer, update_customer, delete_customer,
 )
+from tools.product_tools import (
+    get_product, search_products,
+    create_product, update_product, delete_product,
+)
 from tools.write_tools import (
-    create_product, update_product, create_order, update_order,
+    create_order, update_order,
 )
 
 
@@ -17,11 +21,14 @@ TOOLS: dict[str, Callable[..., dict]] = {
     "query_database": query_database,
     "get_customer": get_customer,
     "search_customers": search_customers,
+    "get_product": get_product,
+    "search_products": search_products,
     "create_customer": create_customer,
     "update_customer": update_customer,
     "delete_customer": delete_customer,
     "create_product": create_product,
     "update_product": update_product,
+    "delete_product": delete_product,
     "create_order": create_order,
     "update_order": update_order,
 }

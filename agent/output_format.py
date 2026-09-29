@@ -26,6 +26,20 @@ For a customer search return one or more filters:
   "arguments": {"name": "Alfreds", "country": "Germany"}
 }
 
+For an exact product ID return:
+
+{
+  "action": "get_product",
+  "arguments": {"product_id": 1}
+}
+
+For a product name search return:
+
+{
+  "action": "search_products",
+  "arguments": {"name": "Chai"}
+}
+
 For CREATE, UPDATE or DELETE operations return:
 
 {
@@ -40,9 +54,10 @@ Rules:
 1. Return exactly one JSON object.
 
 2. General READ requests must use "query_database".
-   Exact customer lookup may use "get_customer"; customer search may use "search_customers".
+   Customer lookup/search may use "get_customer" or "search_customers".
+   Product lookup/search may use "get_product" or "search_products".
 
-3. "query_database" requires "query". Customer tools require "arguments".
+3. "query_database" requires "query". Fixed read tools require "arguments".
 
 4. CREATE, UPDATE and DELETE requests must include:
    "arguments"

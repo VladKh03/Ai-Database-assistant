@@ -11,7 +11,8 @@ from llm.parser import (
 )
 
 ALLOWED_READ_ACTIONS = {
-    "query_database", "get_customer", "search_customers"
+    "query_database", "get_customer", "search_customers",
+    "get_product", "search_products",
 }
 
 
@@ -34,12 +35,14 @@ For this request you are in READ mode.
 You must:
 - use "get_customer" with {"customer_id": "..."} for an exact customer ID
 - use "search_customers" with at least one of name, country, city to find customers
+- use "get_product" with {"product_id": 1} for an exact product ID
+- use "search_products" with name or category_id to find products
 - otherwise use "query_database" and generate exactly one SELECT query
 - never generate INSERT, UPDATE or DELETE
 - return valid JSON only
 - use recent conversation and tool results to resolve references in the current request
 
-For get_customer and search_customers, return an "arguments" object, not a "query".
+For fixed customer and product tools, return an "arguments" object, not a "query".
 """
     )
 
