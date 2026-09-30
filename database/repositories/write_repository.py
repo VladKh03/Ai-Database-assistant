@@ -1,5 +1,3 @@
-"""Parameterized writes using fixed table and column allowlists."""
-
 from contextlib import contextmanager
 
 from sqlalchemy import text

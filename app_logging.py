@@ -1,5 +1,3 @@
-"""Structured application logs with centralized secret redaction."""
-
 import json
 import logging
 import os

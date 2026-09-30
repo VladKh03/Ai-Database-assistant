@@ -1,5 +1,3 @@
-"""Wrap model failures consistently without exposing runtime exceptions."""
-
 from errors import ModelGenerationError
 from app_logging import log_event
 from time import perf_counter

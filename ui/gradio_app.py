@@ -1,5 +1,3 @@
-"""Gradio frontend communicating with the FastAPI backend over HTTP."""
-
 import json
 import os
 from urllib.error import HTTPError, URLError

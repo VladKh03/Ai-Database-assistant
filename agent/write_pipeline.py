@@ -185,8 +185,8 @@ def execute_write_action(action: AgentAction, request_type: str, user_message: s
                     f"Database result: {tool_result}"
                 ),
             },
-        ]).strip()
-        result["answer"] = answer or f"{action.action} succeeded (record {result['record_id']})."
+        ])
+        result["answer"] = answer
     except Exception as error:
         error_info(error)
         result["answer"] = (

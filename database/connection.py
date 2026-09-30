@@ -2,7 +2,6 @@ from pathlib import Path
 from errors import error_info
 
 from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -17,34 +16,6 @@ engine = create_engine(
         "check_same_thread": False
     }
 )
-
-SessionLocal = sessionmaker(
-    bind=engine,
-    autocommit=False,
-    autoflush=False
-)
-
-
-def get_connection():
-    """
-    Return raw SQLAlchemy connection
-    """
-    return engine.connect()
-
-
-def get_session():
-    """
-    Create database session
-
-    Automatically closes session after usage
-    """
-    db = SessionLocal()
-
-    try:
-        yield db
-    finally:
-        db.close()
-
 
 def check_database_connection():
     """

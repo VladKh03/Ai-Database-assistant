@@ -1,6 +1,4 @@
-"""Validated order tools; SQL is formed by OrderRepository."""
-
-from errors import error_info, MESSAGES
+from errors import error_info
 from api.schemas import (
     CreateOrderRequest, DeleteOrderRequest, GetCustomerOrdersRequest,
     GetOrderRequest, ToolResult, UpdateOrderRequest,

@@ -1,5 +1,3 @@
-"""Fixed, parameterized product reads and writes."""
-
 from sqlalchemy import text
 
 from database.repositories.write_repository import WriteRepository

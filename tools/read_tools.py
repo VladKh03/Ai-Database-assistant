@@ -1,4 +1,4 @@
-from errors import error_info, MESSAGES
+from errors import error_info
 from database.repositories import QueryRepository
 from api.schemas import ToolResult
 

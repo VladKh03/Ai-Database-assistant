@@ -187,7 +187,7 @@ unless a database tool was actually executed.
             "success": True,
             "request_type": "GENERAL",
             "action": None,
-            "answer": answer.strip()
+            "answer": answer
         }
 
 

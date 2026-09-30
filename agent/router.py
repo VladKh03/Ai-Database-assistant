@@ -122,7 +122,7 @@ def route_request(
 
     response = generate_text(qwen_model, messages)
 
-    action = response.strip().upper()
+    action = response.upper()
 
     try:
         return ActionType(action)

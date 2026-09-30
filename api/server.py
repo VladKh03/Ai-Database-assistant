@@ -1,5 +1,3 @@
-"""Local HTTP interface for the database assistant."""
-
 from uuid import uuid4
 from app_logging import setup_logging
 

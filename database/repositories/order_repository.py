@@ -1,5 +1,3 @@
-"""Fixed order reads and transactional order/detail writes."""
-
 from sqlalchemy import text
 from errors import InvalidForeignKeyError
 

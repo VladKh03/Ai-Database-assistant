@@ -35,4 +35,4 @@ def build_natural_response(
 
     response = generate_text(qwen_model, messages)
 
-    return response.strip()
+    return response

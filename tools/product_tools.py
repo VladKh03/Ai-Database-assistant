@@ -1,6 +1,4 @@
-"""Validated product tools; SQL is formed by ProductRepository."""
-
-from errors import error_info, MESSAGES
+from errors import error_info
 from api.schemas import (
     CreateProductRequest, DeleteProductRequest, GetProductRequest,
     SearchProductsRequest, ToolResult, UpdateProductRequest,

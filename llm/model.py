@@ -20,12 +20,6 @@ class QwenModel:
     ):
         self.model_name = model_name
 
-        self.device = (
-            "cuda"
-            if torch.cuda.is_available()
-            else "cpu"
-        )
-
         self.tokenizer = AutoTokenizer.from_pretrained(
             self.model_name
         )

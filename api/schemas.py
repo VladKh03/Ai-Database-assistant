@@ -1,5 +1,3 @@
-"""Validated request, response and tool payloads."""
-
 from datetime import date, datetime
 from typing import Any, Literal
 

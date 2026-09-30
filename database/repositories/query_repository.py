@@ -1,5 +1,3 @@
-"""Read-only repository for validated SQLite queries."""
-
 from sqlalchemy import text
 from app_logging import log_event
 from sqlalchemy.engine import Engine

@@ -1,6 +1,4 @@
-"""Validated customer tools; SQL is formed by CustomerRepository."""
-
-from errors import error_info, MESSAGES
+from errors import error_info
 from api.schemas import (
     CreateCustomerRequest, DeleteCustomerRequest, GetCustomerRequest,
     SearchCustomersRequest, ToolResult, UpdateCustomerRequest,

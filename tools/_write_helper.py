@@ -1,5 +1,3 @@
-"""Shared validation and result formatting for repository-backed write tools."""
-
 from errors import error_info, MESSAGES
 from collections.abc import Callable
 

@@ -1,5 +1,3 @@
-"""Start the database, model, agent, FastAPI and Gradio as one application."""
-
 import os
 import threading
 import time

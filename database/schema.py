@@ -63,55 +63,6 @@ def get_database_schema() -> dict:
     return schema
 
 
-def get_table_schema(table_name: str) -> dict:
-    """
-    Return schema for a single table
-    """
-    inspector = inspect(engine)
-
-    if table_name not in inspector.get_table_names():
-        raise ValueError(
-            f"Table '{table_name}' does not exist"
-        )
-
-    columns = inspector.get_columns(table_name)
-    primary_key = inspector.get_pk_constraint(table_name)
-    foreign_keys = inspector.get_foreign_keys(table_name)
-
-    return {
-        "table": table_name,
-        "columns": [
-            {
-                "name": column["name"],
-                "type": str(column["type"]),
-                "nullable": column.get("nullable", True),
-                "default": column.get("default")
-            }
-            for column in columns
-        ],
-        "primary_keys": primary_key.get(
-            "constrained_columns",
-            []
-        ),
-        "foreign_keys": [
-            {
-                "columns": fk.get(
-                    "constrained_columns",
-                    []
-                ),
-                "references_table": fk.get(
-                    "referred_table"
-                ),
-                "references_columns": fk.get(
-                    "referred_columns",
-                    []
-                )
-            }
-            for fk in foreign_keys
-        ]
-    }
-
-
 def format_schema_for_llm(schema: dict | None = None) -> str:
     """
     Convert database schema into compact text
@@ -175,12 +126,3 @@ def format_schema_for_llm(schema: dict | None = None) -> str:
         lines.append("")
 
     return "\n".join(lines)
-
-
-def print_database_schema():
-    """
-    Print formatted database schema
-    """
-    schema_text = format_schema_for_llm()
-
-    print(schema_text)

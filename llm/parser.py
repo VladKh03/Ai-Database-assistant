@@ -115,22 +115,6 @@ def validate_agent_output(
     )
 
 
-def parse_agent_output(
-    text: str,
-    allowed_actions: set[str] | None = None
-) -> AgentAction:
-    """
-    Parse and validate raw LLM output
-    """
-
-    data = parse_json(text)
-
-    return validate_agent_output(
-        data,
-        allowed_actions=allowed_actions
-    )
-
-
 def repair_agent_output(
     model,
     invalid_output: str,
@@ -170,36 +154,3 @@ Return a corrected valid JSON object.
     ]
 
     return generate_text(model, messages)
-
-def generate_and_parse(
-    model,
-    messages: list[dict],
-    allowed_actions: set[str]
-) -> AgentAction:
-    """
-    Generate agent output and retry parsing once
-    """
-
-    raw_output = generate_text(model, messages)
-
-    try:
-        return parse_agent_output(
-            raw_output,
-            allowed_actions
-        )
-
-    except UnknownActionError:
-        # Never turn an unregistered action into an executable one via repair.
-        raise
-
-    except LLMOutputError as first_error:
-        repaired_output = repair_agent_output(
-            model=model,
-            invalid_output=raw_output,
-            error_message=str(first_error)
-        )
-
-        return parse_agent_output(
-            repaired_output,
-            allowed_actions
-        )

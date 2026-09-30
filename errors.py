@@ -1,5 +1,3 @@
-"""Public error messages; technical exception details stay in server logs."""
-
 import logging
 import sqlite3
 
