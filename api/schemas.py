@@ -30,6 +30,19 @@ class ChatResponse(StrictSchema):
     operation_id: str | None = None
 
 
+class AgentFinish(StrictSchema):
+    action: Literal["finish"]
+    answer: str = Field(min_length=1)
+
+    @field_validator("answer")
+    @classmethod
+    def validate_answer(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Answer must not be empty")
+        return value
+
+
 class ResetRequest(StrictSchema):
     session_id: str = Field(min_length=1, max_length=128)
 

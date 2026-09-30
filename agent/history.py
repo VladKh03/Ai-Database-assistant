@@ -31,7 +31,27 @@ class ConversationHistory:
     def add_turn(self, session_id: str, user_message: str, result: dict) -> None:
         messages = [{"role": "user", "content": user_message[:1200]}]
 
-        if result.get("action") and result.get("rows") is not None:
+        for step in result.get("tool_results", [])[-5:]:
+            tool = step["result"]
+            summary = {
+                "step": step["step"],
+                "action": step["action"],
+                "success": tool.get("success", False),
+                "arguments": step.get("arguments"),
+                "query": str(step.get("query") or "")[:500],
+                "row_count": tool.get("row_count"),
+                "rows": [
+                    {str(key): compact_value(value) for key, value in row.items()}
+                    for row in tool.get("rows", [])[:3]
+                ],
+                "error": str(tool.get("error") or "")[:200],
+            }
+            messages.append({
+                "role": "tool",
+                "content": json.dumps(summary, ensure_ascii=False)[:1200],
+            })
+
+        if not result.get("tool_results") and result.get("action") and result.get("rows") is not None:
             tool_result = {
                 "action": result["action"],
                 "success": result.get("success", False),

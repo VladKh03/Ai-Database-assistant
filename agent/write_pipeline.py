@@ -1,13 +1,10 @@
 """Generate, validate, and execute one structured database write."""
 
-from agent.history import format_history
 from agent.confirmation import pending_confirmations
-from agent.output_format import AGENT_OUTPUT_PROMPT
-from agent.prompts import get_system_prompt
 from agent.tool_registry import execute_tool
 from api.schemas import ToolCall
 from llm.model import qwen_model
-from llm.parser import AgentAction, LLMOutputError, generate_and_parse
+from llm.parser import AgentAction
 
 
 WRITE_ACTIONS = {
@@ -47,50 +44,28 @@ Example for a named product:
 """
 
 
-def build_write_messages(
-    user_message: str, request_type: str,
-    history: list[dict[str, str]] | None = None,
-) -> list[dict[str, str]]:
-    return [
-        {
-            "role": "system",
-            "content": (
-                get_system_prompt() + "\n" + AGENT_OUTPUT_PROMPT
-                + "\nYou are in " + request_type + " mode.\n"
-                + WRITE_TOOL_GUIDE
-                + "\nAllowed actions for this request: "
-                + ", ".join(sorted(WRITE_ACTIONS[request_type]))
-            ),
-        },
-        {
-            "role": "user",
-            "content": format_history(history) + "Current user request:\n" + user_message,
-        },
-    ]
-
-
 def run_write_pipeline(
     user_message: str, request_type: str,
     history: list[dict[str, str]] | None = None,
     session_id: str = "default",
 ) -> dict:
+    from agent.loop import run_agent_loop
+
     if request_type not in WRITE_ACTIONS:
         raise ValueError(f"Unsupported write request type: {request_type}")
+    return run_agent_loop(user_message, request_type, history, session_id)
 
-    try:
-        action = generate_and_parse(
-            model=qwen_model,
-            messages=build_write_messages(user_message, request_type, history),
-            allowed_actions=WRITE_ACTIONS[request_type],
-        )
-    except LLMOutputError as error:
-        return {
-            "success": False,
-            "request_type": request_type,
-            "action": None,
-            "error": str(error),
-            "answer": "The request could not be converted into a supported write action.",
-        }
+
+def prepare_write_action(
+    action: AgentAction, request_type: str,
+    user_message: str, session_id: str,
+) -> dict:
+    """Execute one validated write, or prepare DELETE confirmation."""
+    if action.action not in WRITE_ACTIONS.get(request_type, set()):
+        raise ValueError(f"Action not allowed in {request_type} mode: {action.action}")
+    action.arguments = ToolCall.model_validate({
+        "action": action.action, "arguments": action.arguments,
+    }).arguments
 
     lookup_name = action.arguments.get("lookup_name") if action.action == "update_product" else None
     if lookup_name is not None:
