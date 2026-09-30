@@ -1,3 +1,4 @@
+from app_logging import log_event
 from llm.generation import generate_text
 import json
 import re
@@ -106,6 +107,7 @@ def validate_agent_output(
     except ValidationError as error:
         raise LLMOutputError(str(error)) from error
 
+    log_event("parsed_action", action=tool_call.action, query=tool_call.query, arguments=tool_call.arguments)
     return AgentAction(
         action=tool_call.action,
         query=tool_call.query,

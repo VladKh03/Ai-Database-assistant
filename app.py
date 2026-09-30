@@ -1,3 +1,5 @@
+"""Start the database, model, agent, FastAPI and Gradio as one application."""
+
 import os
 import threading
 import time
@@ -5,6 +7,7 @@ from urllib.error import URLError
 from urllib.request import urlopen
 
 import uvicorn
+from app_logging import setup_logging
 
 
 def start_backend(port: int, timeout: float = 15) -> tuple[uvicorn.Server, threading.Thread]:
@@ -35,6 +38,7 @@ def start_backend(port: int, timeout: float = 15) -> tuple[uvicorn.Server, threa
 
 
 def main() -> None:
+    setup_logging()
     from database.connection import DATABASE_PATH, check_database_connection
 
     if not DATABASE_PATH.is_file() or not check_database_connection():

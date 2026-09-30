@@ -2,6 +2,7 @@
 
 from llm.generation import generate_text
 import json
+from app_logging import log_event
 
 from errors import failure
 
@@ -60,7 +61,9 @@ def generate_step(messages: list[dict], allowed_actions: set[str]):
         try:
             data = parse_json(raw)
             if isinstance(data, dict) and data.get("action") == "finish":
-                return AgentFinish.model_validate(data)
+                finish = AgentFinish.model_validate(data)
+                log_event("parsed_action", action="finish")
+                return finish
             return validate_agent_output(data, allowed_actions)
         except UnknownActionError:
             raise

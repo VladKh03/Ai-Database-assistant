@@ -1,3 +1,5 @@
+from app_logging import log_event, request_context
+from time import perf_counter
 from errors import failure
 from llm.generation import generate_text
 from agent.router import (
@@ -32,7 +34,21 @@ class DatabaseAgent:
         self.model = qwen_model
         self.history = conversation_history
 
-    def run(
+    def run(self, user_message: str, session_id: str = "default") -> dict:
+        with request_context(session_id):
+            started = perf_counter()
+            log_event("user_request", message=user_message)
+            try:
+                result = self._run(user_message, session_id)
+                log_event("request_completed", success=result.get("success", False),
+                          action=result.get("action"), error_code=result.get("error_code"),
+                          duration_ms=round((perf_counter() - started) * 1000, 2))
+                return result
+            except Exception:
+                log_event("request_failed", duration_ms=round((perf_counter() - started) * 1000, 2))
+                raise
+
+    def _run(
         self,
         user_message: str,
         session_id: str = "default"
@@ -118,6 +134,16 @@ class DatabaseAgent:
         return run_write_pipeline(user_message, request_type, history, session_id)
 
     def confirm(self, session_id: str, operation_id: str, confirmed: bool) -> dict:
+        with request_context(session_id):
+            started = perf_counter()
+            log_event("confirmation_request", confirmed=confirmed)
+            result = self._confirm(session_id, operation_id, confirmed)
+            log_event("confirmation_completed", success=result.get("success", False),
+                      error_code=result.get("error_code"),
+                      duration_ms=round((perf_counter() - started) * 1000, 2))
+            return result
+
+    def _confirm(self, session_id: str, operation_id: str, confirmed: bool) -> dict:
         try:
             result = confirm_write(session_id, operation_id, confirmed)
         except Exception as error:

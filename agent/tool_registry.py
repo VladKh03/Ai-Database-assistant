@@ -2,6 +2,8 @@
 
 from collections.abc import Callable
 from typing import Any
+from time import perf_counter
+from app_logging import log_event
 
 from tools.read_tools import query_database
 from tools.customer_tools import (
@@ -51,4 +53,15 @@ def get_tool(action: str) -> Callable[..., dict]:
 
 def execute_tool(action: str, **arguments: Any) -> dict:
     """Execute a registered tool with its validated arguments."""
-    return get_tool(action)(**arguments)
+    started = perf_counter()
+    log_event("tool_call", action=action, arguments=arguments)
+    try:
+        result = get_tool(action)(**arguments)
+        log_event("tool_completed", action=action, success=result.get("success", False),
+                  error_code=result.get("error_code"),
+                  duration_ms=round((perf_counter() - started) * 1000, 2))
+        return result
+    except Exception as error:
+        log_event("tool_failed", action=action, error_type=type(error).__name__,
+                  duration_ms=round((perf_counter() - started) * 1000, 2))
+        raise

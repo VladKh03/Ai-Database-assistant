@@ -1,6 +1,7 @@
 """Read-only repository for validated SQLite queries."""
 
 from sqlalchemy import text
+from app_logging import log_event
 from sqlalchemy.engine import Engine
 
 from database.connection import engine
@@ -13,8 +14,10 @@ class QueryRepository:
 
     def select(self, sql: str, params: dict | None = None) -> list[dict]:
         """Validate and execute one SELECT, returning rows as dictionaries."""
+        log_event("generated_sql", sql=sql)
         validated_sql = validate_select_query(sql)
 
+        log_event("validated_sql", sql=validated_sql)
         with self.engine.connect() as connection:
             result = connection.execute(text(validated_sql), params or {})
             return [dict(row) for row in result.mappings()]

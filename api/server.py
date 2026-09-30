@@ -1,6 +1,7 @@
 """Local HTTP interface for the database assistant."""
 
 from uuid import uuid4
+from app_logging import setup_logging
 
 from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
@@ -14,6 +15,7 @@ from database.connection import check_database_connection
 from database.schema import get_database_schema
 
 
+setup_logging()
 app = FastAPI(title="AI Database Assistant")
 
 
@@ -76,6 +78,7 @@ def schema() -> dict:
     try:
         return get_database_schema()
     except Exception as error:
+        error_info(error)
         raise HTTPException(status_code=503, detail="Database unavailable") from error
 
 

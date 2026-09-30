@@ -6,7 +6,7 @@ import sqlite3
 from pydantic import ValidationError
 
 
-logger = logging.getLogger(__name__)
+from app_logging import log_event
 
 
 class ModelGenerationError(RuntimeError):
@@ -89,11 +89,6 @@ MESSAGES = {
 
 
 def error_info(error: Exception) -> dict:
-    logger.error(
-        "Operation failed",
-        exc_info=(type(error), error, error.__traceback__),
-    )
-
     original = getattr(error, "orig", error)
     message = str(original).lower()
     name = type(error).__name__
@@ -101,86 +96,45 @@ def error_info(error: Exception) -> dict:
 
     if isinstance(error, ModelGenerationError):
         code = "generation_failed"
-
     elif isinstance(error, InvalidForeignKeyError):
         code = "invalid_foreign_key"
-
     elif name in {"UnknownToolError", "UnknownActionError"}:
         code = "tool_not_found"
-
     elif name in {"LLMOutputError", "JSONDecodeError"}:
         code = "malformed_json"
-
     elif isinstance(error, ValidationError):
         code = "invalid_arguments"
-
     elif name == "SQLValidationError":
         code = "invalid_sql"
-
-    elif (
-        sqlite_code is not None
-        and sqlite_code & 255 in {sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED}
-    ):
+    elif sqlite_code is not None and sqlite_code & 255 in {sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED}:
         code = "database_locked"
-
-    elif (
-        "database is locked" in message
-        or "database table is locked" in message
-    ):
+    elif "database is locked" in message or "database table is locked" in message:
         code = "database_locked"
-
     elif "no such column" in message:
         code = "column_not_found"
-
     elif "no such table" in message:
         code = "table_not_found"
-
     elif "foreign key constraint failed" in message:
         code = "invalid_foreign_key"
-
     elif "unique constraint failed" in message or "primary key" in message:
         code = "duplicate_primary_key"
-
-    elif (
-        "syntax error" in message
-        or "incomplete input" in message
-        or "misuse of" in message
-        or "unrecognized token" in message
-    ):
+    elif "syntax error" in message or "incomplete input" in message or "misuse of" in message or "unrecognized token" in message:
         code = "invalid_sql"
-
     elif isinstance(error, ValueError):
-        code = (
-            "ambiguous_record" if "ambiguous" in message
-            else "record_not_found" if "not found" in message
-            else "invalid_arguments"
-        )
-
-    elif (
-        isinstance(original, sqlite3.DatabaseError)
-        or type(error).__module__.startswith("sqlalchemy")
-    ):
+        code = ("ambiguous_record" if "ambiguous" in message else
+                "record_not_found" if "not found" in message else "invalid_arguments")
+    elif isinstance(original, sqlite3.DatabaseError) or type(error).__module__.startswith("sqlalchemy"):
         code = "database_error"
-
     else:
         code = "internal_error"
-
+    log_event("database_error" if code in {
+        "invalid_sql", "column_not_found", "table_not_found", "database_locked",
+        "invalid_foreign_key", "duplicate_primary_key", "database_error",
+    } else "operation_error", level=logging.ERROR,
+              error_code=code, error_type=name, sqlite_error_code=sqlite_code)
     return {"error_code": code, "error": MESSAGES[code]}
 
 
-def failure(
-    error: Exception | None = None,
-    *,
-    code: str = "internal_error",
-) -> dict:
-    info = (
-        error_info(error)
-        if error is not None
-        else {"error_code": code, "error": MESSAGES[code]}
-    )
-
-    return {
-        "success": False,
-        **info,
-        "answer": info["error"],
-    }
+def failure(error: Exception | None = None, *, code: str = "internal_error") -> dict:
+    info = error_info(error) if error is not None else {"error_code": code, "error": MESSAGES[code]}
+    return {"success": False, **info, "answer": info["error"]}

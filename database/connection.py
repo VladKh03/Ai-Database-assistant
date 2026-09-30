@@ -1,4 +1,5 @@
 from pathlib import Path
+from errors import error_info
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
@@ -55,5 +56,6 @@ def check_database_connection():
 
         return True
 
-    except Exception:
+    except Exception as error:
+        error_info(error)
         return False
