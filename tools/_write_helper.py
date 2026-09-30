@@ -7,6 +7,7 @@ from api.schemas import ToolResult
 
 
 def write_result(model: type[BaseModel], operation: Callable[[dict], dict], arguments: dict) -> dict:
+    """Validate write data and return a standard result"""
     try:
         request = model.model_validate(arguments)
         result = operation(request.model_dump(exclude_unset=True, mode="json"))
@@ -23,6 +24,7 @@ def write_result(model: type[BaseModel], operation: Callable[[dict], dict], argu
 
 
 def read_result(rows: list[dict], *, required: bool = False) -> dict:
+    """Report a missing record only when a specific record is required"""
     if required and not rows:
         return ToolResult(
             success=False, rows=[], row_count=0,

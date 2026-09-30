@@ -4,16 +4,7 @@ from database.connection import engine
 
 
 def get_database_schema() -> dict:
-    """
-    Return full database schema
-
-    Includes:
-    - tables
-    - columns
-    - data types
-    - primary keys
-    - foreign keys
-    """
+    """Read table names, columns, keys and links between tables"""
     inspector = inspect(engine)
 
     schema = {}
@@ -64,10 +55,7 @@ def get_database_schema() -> dict:
 
 
 def format_schema_for_llm(schema: dict | None = None) -> str:
-    """
-    Convert database schema into compact text
-    suitable for LLM context
-    """
+    """Turn the database schema into short text for the model"""
     if schema is None:
         schema = get_database_schema()
 

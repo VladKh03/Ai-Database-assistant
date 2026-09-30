@@ -6,6 +6,7 @@ DEFAULT_LIMIT = 20
 
 
 class SQLValidationError(Exception):
+    """Report SQL that does not pass the checks"""
     pass
 
 
@@ -25,6 +26,7 @@ FORBIDDEN_KEYWORDS = {
 }
 
 def remove_sql_comments(sql: str) -> str:
+    """Remove SQL comments before checking the query"""
     sql = re.sub(
         r"--.*?$",
         "",
@@ -43,6 +45,7 @@ def remove_sql_comments(sql: str) -> str:
 
 
 def check_multiple_statements(sql: str) -> None:
+    """Reject semicolons except one at the end"""
     cleaned = sql.strip()
 
     if cleaned.endswith(";"):
@@ -55,6 +58,7 @@ def check_multiple_statements(sql: str) -> None:
 
 
 def check_select_only(sql: str) -> None:
+    """Require the query to start with SELECT"""
     if not re.match(
         r"^\s*SELECT\b",
         sql,
@@ -66,6 +70,7 @@ def check_select_only(sql: str) -> None:
 
 
 def check_forbidden_keywords(sql: str) -> None:
+    """Reject keywords used by blocked SQL operations"""
     uppercase_sql = sql.upper()
 
     for keyword in FORBIDDEN_KEYWORDS:
@@ -83,15 +88,11 @@ def apply_limit(
     default_limit: int = DEFAULT_LIMIT,
     max_rows: int = MAX_ROWS
 ) -> str:
-    """
-    Add default LIMIT to queries.
-    Reject negative LIMIT values.
-    Clamp LIMIT values above MAX_ROWS.
-    """
+    """Add a default limit or reduce the first numeric limit found"""
 
     sql = sql.strip().rstrip(";").strip()
 
-    # Block negative LIMIT values, e.g. LIMIT -1
+    # Reject negative limits such as LIMIT -1
     negative_limit = re.search(
         r"\bLIMIT\s+-\d+\b",
         sql,
@@ -132,6 +133,7 @@ def validate_select_query(
     sql: str,
     add_limit: bool = True
 ) -> str:
+    """Check the SQL text and add a row limit when requested"""
     if not isinstance(sql, str):
         raise SQLValidationError(
             "SQL query must be a string"

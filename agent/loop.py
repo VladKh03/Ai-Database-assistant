@@ -1,4 +1,4 @@
-"""Bounded tool planning with terminal writes and mandatory DELETE confirmation."""
+"""Run a short sequence of tools to answer one request"""
 
 from llm.generation import generate_text
 import json
@@ -56,6 +56,7 @@ The finish action is a response, not a registered database tool.
 
 
 def generate_step(messages: list[dict], allowed_actions: set[str]):
+    """Read one model action and try one repair if its format is invalid"""
     raw = generate_text(qwen_model, messages)
     for attempt in range(2):
         try:
@@ -65,6 +66,7 @@ def generate_step(messages: list[dict], allowed_actions: set[str]):
                 log_event("parsed_action", action="finish")
                 return finish
             return validate_agent_output(data, allowed_actions)
+        # Do not repair an action that the agent is not allowed to use
         except UnknownActionError:
             raise
         except (LLMOutputError, ValidationError) as error:
@@ -78,12 +80,14 @@ def run_agent_loop(
     history: list[dict[str, str]] | None = None,
     session_id: str = "default",
 ) -> dict:
+    """Run up to five tool calls and stop after a write or final answer"""
     if not isinstance(user_message, str) or not user_message.strip():
         return {"success": False, "answer": "User message must be a non-empty string."}
     if request_type not in {"READ", *WRITE_ACTIONS}:
         raise ValueError(f"Unsupported request type: {request_type}")
 
     user_message = user_message.strip()
+    # Allow reads in every mode, but only the requested type of write
     allowed = ALLOWED_READ_ACTIONS | WRITE_ACTIONS.get(request_type, set())
     trace = []
     last = {"action": None, "query": None, "rows": [], "row_count": 0}
@@ -108,7 +112,7 @@ def run_agent_loop(
                 }
 
             if action.action not in ALLOWED_READ_ACTIONS:
-                # Stop after one write; never plan another write after commit.
+                # Stop after a write to avoid repeating a saved change
                 result = prepare_write_action(action, request_type, user_message, session_id)
                 return {**result, "tool_results": trace, "steps": len(trace) + 1}
 
@@ -132,7 +136,7 @@ def run_agent_loop(
                     "tool_results": trace, "steps": len(trace),
                 }
 
-            # Plain chat messages also work with the existing Qwen wrapper.
+            # Send each tool result back as a chat message
             messages.extend([
                 {"role": "assistant", "content": json.dumps({
                     "action": action.action,
@@ -146,8 +150,7 @@ def run_agent_loop(
                 )},
             ])
 
-        # Five tool calls are exhausted. Generate a response without dispatching
-        # another tool, and distinguish partial results from a complete answer.
+        # The tool limit is reached, so summarize only the results already collected
         answer = build_natural_response(
             user_message,
             {"tool_results": trace, "step_limit_reached": True,

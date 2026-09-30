@@ -8,6 +8,7 @@ from tools._write_helper import write_result, read_result
 
 
 def get_order(order_id: int, *, repository: OrderRepository | None = None) -> dict:
+    """Validate the ID and read one order"""
     try:
         request = GetOrderRequest.model_validate({"order_id": order_id})
         rows = (repository or OrderRepository()).get(request.order_id)
@@ -19,6 +20,7 @@ def get_order(order_id: int, *, repository: OrderRepository | None = None) -> di
 def get_customer_orders(
     customer_id: str, *, repository: OrderRepository | None = None,
 ) -> dict:
+    """Validate the customer ID and read recent orders"""
     try:
         request = GetCustomerOrdersRequest.model_validate({"customer_id": customer_id})
         rows = (repository or OrderRepository()).get_customer_orders(request.customer_id)
@@ -28,11 +30,13 @@ def get_customer_orders(
 
 
 def create_order(*, repository: OrderRepository | None = None, **arguments) -> dict:
+    """Validate the data and create a order"""
     repo = repository if repository is not None else OrderRepository()
     return write_result(CreateOrderRequest, repo.create, arguments)
 
 
 def update_order(*, repository: OrderRepository | None = None, **arguments) -> dict:
+    """Validate the changes and update a order"""
     repo = repository if repository is not None else OrderRepository()
 
     def update(data: dict) -> dict:
@@ -43,6 +47,7 @@ def update_order(*, repository: OrderRepository | None = None, **arguments) -> d
 
 
 def delete_order(order_id: int, *, repository: OrderRepository | None = None) -> dict:
+    """Delete a order by ID through the repository"""
     repo = repository if repository is not None else OrderRepository()
     return write_result(
         DeleteOrderRequest,

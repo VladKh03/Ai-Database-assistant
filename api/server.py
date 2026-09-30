@@ -19,7 +19,8 @@ app = FastAPI(title="AI Database Assistant")
 
 @app.exception_handler(RequestValidationError)
 async def invalid_request(request, error):
-    # Do not expose Pydantic input values or internal validation details.
+    # Keep input values and internal error details out of the response
+    """Return a safe message for invalid HTTP input"""
     code = "malformed_json" if any(item["type"] == "json_invalid" for item in error.errors()) else "invalid_arguments"
     message = (
         "Тіло запиту містить некоректний JSON."
@@ -32,6 +33,7 @@ async def invalid_request(request, error):
 
 @app.exception_handler(Exception)
 async def unexpected_error(request, error):
+    """Return a safe message for an unexpected server error"""
     problem = failure(error)
     return JSONResponse(status_code=500, content={
         "success": False, "error_code": problem["error_code"],
@@ -41,8 +43,8 @@ async def unexpected_error(request, error):
 
 @app.post("/chat", response_model=ChatResponse)
 def chat(request: ChatRequest) -> ChatResponse:
-    # The model is loaded on the first chat request; health and schema remain
-    # available even on a machine without model weights or a GPU.
+    # Load the agent here so health and schema checks do not need Qwen
+    """Create or reuse a session and pass the message to the agent"""
     session_id = request.session_id or uuid4().hex
     try:
         from agent.agent import database_agent
@@ -66,6 +68,7 @@ def chat(request: ChatRequest) -> ChatResponse:
 
 @app.get("/health")
 def health() -> dict:
+    """Check if the database accepts a simple query"""
     if not check_database_connection():
         raise HTTPException(status_code=503, detail="Database unavailable")
     return {"status": "ok", "database": "connected"}
@@ -73,6 +76,7 @@ def health() -> dict:
 
 @app.get("/schema")
 def schema() -> dict:
+    """Return the current database structure"""
     try:
         return get_database_schema()
     except Exception as error:
@@ -82,6 +86,7 @@ def schema() -> dict:
 
 @app.post("/confirm", response_model=ChatResponse)
 def confirm(request: ConfirmationRequest) -> ChatResponse:
+    """Confirm or cancel a pending delete request"""
     try:
         from agent.agent import database_agent
         result = database_agent.confirm(request.session_id, request.operation_id, request.confirmed)
@@ -95,6 +100,7 @@ def confirm(request: ConfirmationRequest) -> ChatResponse:
 
 @app.post("/reset")
 def reset(request: ResetRequest | None = None) -> dict:
+    """Clear chat history and cancel the pending delete request"""
     if request is None:
         return {"success": True, "cleared": False}
     cancelled = pending_confirmations.clear(request.session_id)

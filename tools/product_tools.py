@@ -8,6 +8,7 @@ from tools._write_helper import write_result, read_result
 
 
 def get_product(product_id: int, *, repository: ProductRepository | None = None) -> dict:
+    """Validate the ID and read one product"""
     try:
         request = GetProductRequest.model_validate({"product_id": product_id})
         rows = (repository or ProductRepository()).get(request.product_id)
@@ -20,6 +21,7 @@ def search_products(
     name: str | None = None, category_id: int | None = None,
     exact_name: bool = False, *, repository: ProductRepository | None = None,
 ) -> dict:
+    """Validate search filters and find matching products"""
     try:
         request = SearchProductsRequest.model_validate(
             {"name": name, "category_id": category_id, "exact_name": exact_name}
@@ -31,11 +33,13 @@ def search_products(
 
 
 def create_product(*, repository: ProductRepository | None = None, **arguments) -> dict:
+    """Validate the data and create a product"""
     repo = repository if repository is not None else ProductRepository()
     return write_result(CreateProductRequest, repo.create, arguments)
 
 
 def update_product(*, repository: ProductRepository | None = None, **arguments) -> dict:
+    """Validate the changes and update a product"""
     repo = repository if repository is not None else ProductRepository()
 
     def update(data: dict) -> dict:
@@ -46,6 +50,7 @@ def update_product(*, repository: ProductRepository | None = None, **arguments) 
 
 
 def delete_product(product_id: int, *, repository: ProductRepository | None = None) -> dict:
+    """Delete a product by ID through the repository"""
     repo = repository if repository is not None else ProductRepository()
     return write_result(
         DeleteProductRequest,

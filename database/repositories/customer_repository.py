@@ -4,6 +4,7 @@ from database.repositories.write_repository import WriteRepository
 
 
 class CustomerRepository(WriteRepository):
+    """Read and change customer records with fixed SQL fields"""
     table = "Customers"
     primary_key = "customer_id"
     fields = {
@@ -26,10 +27,11 @@ class CustomerRepository(WriteRepository):
         self, name: str | None = None, country: str | None = None,
         city: str | None = None,
     ) -> list[dict]:
+        """Find customers by name, country or city"""
         clauses = []
         params = {}
         if name is not None:
-            # Treat percent and underscore as literal characters in a name.
+            # Treat % and _ as text instead of search patterns
             escaped = name.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
             clauses.append(
                 '("CompanyName" LIKE :name ESCAPE \'\\\' '

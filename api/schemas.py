@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 
 class StrictSchema(BaseModel):
+    """Reject fields that are not defined in the model"""
     model_config = ConfigDict(extra="forbid")
 
 
@@ -142,6 +143,7 @@ class UpdateCustomerRequest(StrictSchema):
 
 
 class ProductChanges(StrictSchema):
+    """Share the fields used to update a product"""
     product_name: str | None = Field(default=None, min_length=1)
     supplier_id: int | None = Field(default=None, gt=0)
     category_id: int | None = Field(default=None, gt=0)
@@ -243,6 +245,7 @@ class CreateProductRequest(StrictSchema):
 
 
 class OrderItemRequest(StrictSchema):
+    """Describe one product and its quantity in an order"""
     product_id: int | None = Field(default=None, gt=0)
     product_name: str | None = Field(default=None, min_length=1)
     quantity: int = Field(gt=0)
@@ -261,6 +264,7 @@ class OrderItemRequest(StrictSchema):
 
     @model_validator(mode="after")
     def require_one_product_reference(self):
+        """Accept a product ID or a product name, but not both"""
         if (self.product_id is None) == (self.product_name is None):
             raise ValueError("Provide exactly one of product_id or product_name")
         return self
@@ -340,6 +344,7 @@ class ConfirmationRequest(StrictSchema):
     confirmed: bool
 
 
+# Select a separate input model for each write tool
 WRITE_ARGUMENT_SCHEMAS = {
     "update_customer": UpdateCustomerRequest,
     "update_product": UpdateProductRequest,
@@ -352,6 +357,7 @@ WRITE_ARGUMENT_SCHEMAS = {
     "delete_order": DeleteOrderRequest,
 }
 
+# Check the inputs of fixed read tools before they run
 READ_ARGUMENT_SCHEMAS = {
     "get_customer": GetCustomerRequest,
     "search_customers": SearchCustomersRequest,
@@ -363,6 +369,7 @@ READ_ARGUMENT_SCHEMAS = {
 
 
 class ToolCall(StrictSchema):
+    """Check the tool name and the data needed by that tool"""
     action: Literal[
         "query_database", "get_customer", "search_customers",
         "get_product", "search_products",
@@ -376,6 +383,7 @@ class ToolCall(StrictSchema):
 
     @model_validator(mode="after")
     def validate_action_payload(self):
+        """Choose the argument model for the selected action"""
         if self.action == "query_database":
             if self.query is None or not self.query.strip():
                 raise ValueError("READ action requires a nonempty query")
@@ -405,6 +413,7 @@ class ToolCall(StrictSchema):
 
 
 class ToolResult(StrictSchema):
+    """Use the same result format for all database tools"""
     error_code: str | None = None
     success: bool
     rows: list[dict[str, Any]] | None = None

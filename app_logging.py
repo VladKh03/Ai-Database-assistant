@@ -27,6 +27,7 @@ _ASSIGNMENT = re.compile(
 
 
 def secret_key(key: str) -> bool:
+    """Check if a field name may contain a secret"""
     if any(
         part in key.casefold()
         for part in ("парол", "токен", "секрет")
@@ -45,6 +46,7 @@ def secret_key(key: str) -> bool:
 
 
 def redact(value):
+    """Hide known secrets in text and nested values"""
     if isinstance(value, dict):
         return {
             str(key): (
@@ -66,7 +68,7 @@ def redact(value):
             else f"<{type(value).__name__}>"
         )
 
-    # Mask known secrets even if they appear without a field name.
+    # Hide known secret values even when no field name is given
     for key, secret in os.environ.items():
         if secret_key(key) and secret:
             value = value.replace(secret, REDACTED)
@@ -111,6 +113,7 @@ def redact(value):
 
 
 class SafeJSONFormatter(logging.Formatter):
+    """Write log records as JSON after hiding secrets"""
     def format(self, record: logging.LogRecord) -> str:
         payload = {
             "time": datetime.fromtimestamp(
@@ -121,7 +124,7 @@ class SafeJSONFormatter(logging.Formatter):
             **getattr(record, "event_fields", {}),
         }
 
-        # Omit exception tracebacks and SQL parameter dumps.
+        # Keep tracebacks and raw SQL parameters out of logs
         return json.dumps(
             redact(payload),
             ensure_ascii=False,
@@ -130,6 +133,7 @@ class SafeJSONFormatter(logging.Formatter):
 
 
 def setup_logging() -> None:
+    """Add console and rotating file logs once"""
     with _setup_lock:
         if _logger.handlers:
             return
@@ -175,6 +179,7 @@ def log_event(
     level: int = logging.INFO,
     **fields,
 ) -> None:
+    """Write an event with the current request context"""
     setup_logging()
     _logger.log(
         level,
@@ -190,6 +195,7 @@ def log_event(
 
 @contextmanager
 def request_context(session_id: str):
+    """Keep request details separate for each running request"""
     token = _context.set({
         "request_id": _context.get().get(
             "request_id", uuid4().hex

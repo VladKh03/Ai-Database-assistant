@@ -1,4 +1,4 @@
-"""Short, session-scoped conversation context for the database agent."""
+"""Keep recent messages and tool results for each session"""
 
 import json
 from collections import OrderedDict, deque
@@ -10,17 +10,20 @@ MAX_SESSIONS = 100
 
 
 def compact_value(value) -> str:
+    """Shorten values before adding them to chat history"""
     if isinstance(value, bytes):
         return f"<{len(value)} binary bytes>"
     return str(value)[:120]
 
 
 class ConversationHistory:
+    """Keep a short, separate history for each session"""
     def __init__(self):
         self._sessions: OrderedDict[str, deque[dict[str, str]]] = OrderedDict()
         self._lock = Lock()
 
     def get(self, session_id: str) -> list[dict[str, str]]:
+        """Return message copies so callers cannot change saved history"""
         with self._lock:
             messages = self._sessions.get(session_id)
             if messages is None:
@@ -29,8 +32,10 @@ class ConversationHistory:
             return [message.copy() for message in messages]
 
     def add_turn(self, session_id: str, user_message: str, result: dict) -> None:
+        """Save the user message, tool results and answer"""
         messages = [{"role": "user", "content": user_message[:1200]}]
 
+        # Keep short tool results so the next prompt stays small
         for step in result.get("tool_results", [])[-5:]:
             tool = step["result"]
             summary = {
@@ -96,16 +101,18 @@ class ConversationHistory:
             )
             history.extend(messages)
             self._sessions.move_to_end(session_id)
+            # Drop the least recently used session when storage is full
             while len(self._sessions) > MAX_SESSIONS:
                 self._sessions.popitem(last=False)
 
     def clear(self, session_id: str) -> bool:
+        """Remove all messages for one session"""
         with self._lock:
             return self._sessions.pop(session_id, None) is not None
 
 
 def format_history(history: list[dict[str, str]] | None) -> str:
-    """Place recent context before the latest request in a user message."""
+    """Add recent messages as context for the current request"""
     if not history:
         return ""
     lines = ["Recent conversation (context only):"]

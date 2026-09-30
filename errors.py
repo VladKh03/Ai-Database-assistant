@@ -8,10 +8,12 @@ from app_logging import log_event
 
 
 class ModelGenerationError(RuntimeError):
+    """Report a failed model call"""
     pass
 
 
 class InvalidForeignKeyError(ValueError):
+    """Report a missing record used by another record"""
     pass
 
 
@@ -87,6 +89,8 @@ MESSAGES = {
 
 
 def error_info(error: Exception) -> dict:
+    """Choose a public error message and log only safe error details"""
+    # SQLAlchemy keeps the original database error in orig
     original = getattr(error, "orig", error)
     message = str(original).lower()
     name = type(error).__name__
@@ -125,6 +129,7 @@ def error_info(error: Exception) -> dict:
         code = "database_error"
     else:
         code = "internal_error"
+    # Log error codes and types without raw SQL parameters
     log_event("database_error" if code in {
         "invalid_sql", "column_not_found", "table_not_found", "database_locked",
         "invalid_foreign_key", "duplicate_primary_key", "database_error",
@@ -134,5 +139,6 @@ def error_info(error: Exception) -> dict:
 
 
 def failure(error: Exception | None = None, *, code: str = "internal_error") -> dict:
+    """Build a failed result with a message for the user"""
     info = error_info(error) if error is not None else {"error_code": code, "error": MESSAGES[code]}
     return {"success": False, **info, "answer": info["error"]}

@@ -1,4 +1,4 @@
-"""Central allowlist and dispatcher for executable database tools."""
+"""Store the tools that the agent is allowed to call"""
 
 from collections.abc import Callable
 from typing import Any
@@ -41,10 +41,11 @@ TOOLS: dict[str, Callable[..., dict]] = {
 
 
 class UnknownToolError(ValueError):
-    """Raised when an action is not registered as an executable tool."""
+    """Report a tool name that is not registered"""
 
 
 def get_tool(action: str) -> Callable[..., dict]:
+    """Find a tool in the allowed list or raise an error"""
     try:
         return TOOLS[action]
     except (KeyError, TypeError) as error:
@@ -52,7 +53,7 @@ def get_tool(action: str) -> Callable[..., dict]:
 
 
 def execute_tool(action: str, **arguments: Any) -> dict:
-    """Execute a registered tool with its validated arguments."""
+    """Call the selected tool and log its result status and run time"""
     started = perf_counter()
     log_event("tool_call", action=action, arguments=arguments)
     try:

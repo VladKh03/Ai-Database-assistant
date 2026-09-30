@@ -9,9 +9,7 @@ def build_natural_response(
     tool_result,
     history: list[dict[str, str]] | None = None
 ) -> str:
-    """
-    Convert database/tool result into a natural-language answer.
-    """
+    """Build an answer from the collected database results"""
 
     prompt = build_result_prompt(
         user_query=user_query,

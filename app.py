@@ -9,7 +9,7 @@ from app_logging import setup_logging
 
 
 def start_backend(port: int, timeout: float = 15) -> tuple[uvicorn.Server, threading.Thread]:
-    """Run FastAPI in a background thread and wait until /health responds."""
+    """Start FastAPI in a thread and wait for the health check"""
     from api.server import app as fastapi_app
 
     server = uvicorn.Server(
@@ -36,6 +36,7 @@ def start_backend(port: int, timeout: float = 15) -> tuple[uvicorn.Server, threa
 
 
 def main() -> None:
+    """Load the model, start the backend and open the chat UI"""
     setup_logging()
     from database.connection import DATABASE_PATH, check_database_connection
 
@@ -57,7 +58,7 @@ def main() -> None:
     server, thread = start_backend(api_port)
     os.environ["API_BASE_URL"] = f"http://127.0.0.1:{api_port}"
 
-    # A share link lets a Colab notebook reach its local Gradio server.
+    # Use a public Gradio link when running in Colab
     share_default = "COLAB_RELEASE_TAG" in os.environ
     share = os.getenv("GRADIO_SHARE", str(share_default)).lower() in {"1", "true", "yes"}
 

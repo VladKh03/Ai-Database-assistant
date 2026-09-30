@@ -1,4 +1,4 @@
-"""Generate, validate, and execute one structured database write."""
+"""Check write requests and ask for DELETE confirmation"""
 
 from llm.generation import generate_text
 from errors import failure, error_info
@@ -51,6 +51,7 @@ def run_write_pipeline(
     history: list[dict[str, str]] | None = None,
     session_id: str = "default",
 ) -> dict:
+    """Start the loop with reads and the selected type of write"""
     from agent.loop import run_agent_loop
 
     if request_type not in WRITE_ACTIONS:
@@ -62,13 +63,14 @@ def prepare_write_action(
     action: AgentAction, request_type: str,
     user_message: str, session_id: str,
 ) -> dict:
-    """Execute one validated write, or prepare DELETE confirmation."""
+    """Check write arguments and ask for confirmation before DELETE"""
     if action.action not in WRITE_ACTIONS.get(request_type, set()):
         raise ValueError(f"Action not allowed in {request_type} mode: {action.action}")
     action.arguments = ToolCall.model_validate({
         "action": action.action, "arguments": action.arguments,
     }).arguments
 
+    # Resolve a product name to one exact ID before changing data
     lookup_name = action.arguments.get("lookup_name") if action.action == "update_product" else None
     if lookup_name is not None:
         lookup = execute_tool("search_products", name=lookup_name, exact_name=True)
@@ -87,7 +89,7 @@ def prepare_write_action(
             **{key: value for key, value in action.arguments.items() if key != "lookup_name"},
             "product_id": matches[0]["ProductID"],
         }
-        # Revalidate as the normal ID-based action before executing a write.
+        # Check the resolved ID before changing the product
         action.arguments = ToolCall.model_validate({
             "action": "update_product", "arguments": resolved_arguments,
         }).arguments
@@ -110,6 +112,7 @@ def prepare_write_action(
             }
         record_id = action.arguments[id_field]
         label = rows[0].get(label_field, "")
+        # Save the action without running DELETE yet
         operation_id = pending_confirmations.put(session_id, {
             "action": action.action, "arguments": action.arguments,
             "user_message": user_message,
@@ -129,6 +132,7 @@ def prepare_write_action(
 
 
 def confirm_write(session_id: str, operation_id: str, confirmed: bool) -> dict:
+    """Use a pending delete request once, or cancel it"""
     operation = pending_confirmations.take(session_id, operation_id)
     if operation is None:
         return {"success": False, "action": None,
@@ -143,8 +147,8 @@ def confirm_write(session_id: str, operation_id: str, confirmed: bool) -> dict:
 
 
 def execute_write_action(action: AgentAction, request_type: str, user_message: str) -> dict:
-    # ToolCall validates the action and arguments before this dispatch.
-    # Each tool validates again and its repository owns the parameterized SQL.
+    # Each tool checks its inputs before the repository runs SQL
+    """Run one write and describe the saved result"""
     try:
         tool_result = execute_tool(action.action, **action.arguments)
     except Exception as error:
@@ -164,8 +168,7 @@ def execute_write_action(action: AgentAction, request_type: str, user_message: s
         result["answer"] = "Базу даних не змінено. " + result["error"]
         return result
 
-    # The database commit has completed. Never retry the write just because
-    # the response model fails; return a truthful fallback in that case.
+    # The change is already saved, so a failed answer must not repeat the write
     try:
         answer = generate_text(qwen_model, [
             {

@@ -4,6 +4,7 @@ from database.repositories.write_repository import WriteRepository
 
 
 class ProductRepository(WriteRepository):
+    """Read and change product records with fixed SQL fields"""
     table = "Products"
     primary_key = "product_id"
     fields = {
@@ -26,6 +27,7 @@ class ProductRepository(WriteRepository):
         self, name: str | None = None, category_id: int | None = None,
         exact_name: bool = False,
     ) -> list[dict]:
+        """Find products by name or category"""
         clauses = []
         params = {}
         if name is not None:
@@ -42,7 +44,7 @@ class ProductRepository(WriteRepository):
         if not clauses:
             raise ValueError("Provide a name or category_id")
 
-        # For exact names two rows are enough to detect ambiguity before a write.
+        # Two matches are enough to show that a name is not unique
         limit = 2 if exact_name else 20
         statement = text(
             'SELECT * FROM "Products" WHERE ' + ' AND '.join(clauses)
@@ -63,6 +65,7 @@ class ProductRepository(WriteRepository):
 
     @staticmethod
     def _normalize(data: dict) -> dict:
+        """Convert the discontinued value to the database format"""
         values = data.copy()
         if "discontinued" in values and values["discontinued"] is not None:
             values["discontinued"] = str(int(values["discontinued"]))

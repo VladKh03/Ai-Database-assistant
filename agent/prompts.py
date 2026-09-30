@@ -1,6 +1,7 @@
 from database.schema import format_schema_for_llm
 
 
+# Insert the live schema so the model can use current table names
 SYSTEM_PROMPT_TEMPLATE = """
 You are an AI assistant that works with a SQLite database.
 
@@ -84,9 +85,7 @@ You must always follow the provided database schema.
 
 
 def get_system_prompt() -> str:
-    """
-    Build system prompt using the current SQLite database schema
-    """
+    """Add the current database schema to the system prompt"""
     schema = format_schema_for_llm()
 
     return SYSTEM_PROMPT_TEMPLATE.format(
@@ -118,6 +117,7 @@ def build_result_prompt(
     user_query: str,
     result
 ) -> str:
+    """Combine the user question and database result for the final answer"""
     return RESULT_PROMPT_TEMPLATE.format(
         user_query=user_query,
         result=result

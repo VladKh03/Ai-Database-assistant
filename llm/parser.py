@@ -12,27 +12,24 @@ from agent.tool_registry import UnknownToolError, get_tool
 
 
 class LLMOutputError(Exception):
-    """
-    Raised when LLM output cannot be parsed or validated
-    """
+    """Report model output that cannot be read or validated"""
     pass
 
 
 class UnknownActionError(LLMOutputError):
-    """Raised for an action outside the executable tool allowlist."""
+    """Report an action that is not allowed"""
 
 
 @dataclass
 class AgentAction:
+    """Store one validated tool name and its input"""
     action: str
     query: str | None = None
     arguments: dict[str, Any] | None = None
 
 
 def extract_json(text: str) -> str:
-    """
-    Extract first JSON object from model output
-    """
+    """Find the JSON object in the model response"""
 
     text = text.strip()
 
@@ -54,9 +51,7 @@ def extract_json(text: str) -> str:
 
 
 def parse_json(text: str) -> dict:
-    """
-    Parse JSON from raw model output
-    """
+    """Convert the model JSON text into Python data"""
 
     json_text = extract_json(text)
 
@@ -73,9 +68,7 @@ def validate_agent_output(
     data: dict,
     allowed_actions: set[str] | None = None
 ) -> AgentAction:
-    """
-    Validate agent JSON structure
-    """
+    """Check that the action and its arguments are allowed"""
 
     if not isinstance(data, dict):
         raise LLMOutputError(
@@ -120,9 +113,7 @@ def repair_agent_output(
     invalid_output: str,
     error_message: str
 ) -> str:
-    """
-    Ask model once to repair invalid JSON output
-    """
+    """Ask the model once to fix an invalid JSON response"""
 
     messages = [
         {

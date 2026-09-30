@@ -4,6 +4,7 @@ from time import perf_counter
 
 
 def generate_text(model, messages: list[dict]) -> str:
+    """Log the model output and reject empty or failed responses"""
     started = perf_counter()
     try:
         answer = model.generate(messages)

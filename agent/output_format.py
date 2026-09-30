@@ -1,3 +1,4 @@
+# Keep the model response format the same for all tool calls
 AGENT_OUTPUT_PROMPT = """
 You must return valid JSON only.
 

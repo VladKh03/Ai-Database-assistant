@@ -8,6 +8,7 @@ from tools._write_helper import write_result, read_result
 
 
 def get_customer(customer_id: str, *, repository: CustomerRepository | None = None) -> dict:
+    """Validate the ID and read one customer"""
     try:
         request = GetCustomerRequest.model_validate({"customer_id": customer_id})
         rows = (repository or CustomerRepository()).get(request.customer_id)
@@ -23,6 +24,7 @@ def search_customers(
     *,
     repository: CustomerRepository | None = None,
 ) -> dict:
+    """Validate search filters and find matching customers"""
     try:
         request = SearchCustomersRequest.model_validate(
             {"name": name, "country": country, "city": city}
@@ -34,11 +36,13 @@ def search_customers(
 
 
 def create_customer(*, repository: CustomerRepository | None = None, **arguments) -> dict:
+    """Validate the data and create a customer"""
     repo = repository if repository is not None else CustomerRepository()
     return write_result(CreateCustomerRequest, repo.create, arguments)
 
 
 def update_customer(*, repository: CustomerRepository | None = None, **arguments) -> dict:
+    """Validate the changes and update a customer"""
     repo = repository if repository is not None else CustomerRepository()
 
     def update(data: dict) -> dict:
@@ -49,6 +53,7 @@ def update_customer(*, repository: CustomerRepository | None = None, **arguments
 
 
 def delete_customer(customer_id: str, *, repository: CustomerRepository | None = None) -> dict:
+    """Delete a customer by ID through the repository"""
     repo = repository if repository is not None else CustomerRepository()
     return write_result(
         DeleteCustomerRequest,

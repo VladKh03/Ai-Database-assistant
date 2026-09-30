@@ -13,7 +13,7 @@ REQUEST_TIMEOUT_SECONDS = 180
 
 
 def post_backend(endpoint: str, payload: dict) -> dict:
-    """Send a JSON request to FastAPI."""
+    """Send JSON to FastAPI and check the response"""
     request = Request(
         f"{API_BASE_URL}/{endpoint}",
         data=json.dumps(payload).encode("utf-8"),
@@ -56,6 +56,7 @@ def ask_backend(
     message: str,
     session_id: str | None = None,
 ) -> dict:
+    """Send a chat message with the current session ID"""
     payload = {"message": message}
     if session_id:
         payload["session_id"] = session_id
@@ -68,7 +69,7 @@ def send_message(
     session_id: str | None,
     operation_id: str | None = None,
 ) -> tuple[str, list[dict], str | None, str | None]:
-    """Update the visible conversation using only the FastAPI response."""
+    """Add the user message and backend answer to the visible chat"""
     message = message.strip()
     history = list(history or [])
 
@@ -93,7 +94,7 @@ def send_message(
 def clear_chat(
     session_id: str | None,
 ) -> tuple[str, list[dict], None, None]:
-    """Clear visible chat and discard its backend history."""
+    """Clear the chat and request a backend session reset"""
     if session_id:
         request = Request(
             f"{API_BASE_URL}/reset",
@@ -105,13 +106,14 @@ def clear_chat(
             with urlopen(request, timeout=3):
                 pass
         except (URLError, TimeoutError):
-            # Dropping the ID still starts a fresh session on the next message.
+            # A new message starts a new session after this ID is cleared
             pass
 
     return "", [], None, None
 
 
 def confirm_delete(history, session_id, operation_id, confirmed):
+    """Send the user decision for the saved delete request"""
     history = list(history or [])
 
     if not session_id or not operation_id:
@@ -131,6 +133,7 @@ def confirm_delete(history, session_id, operation_id, confirmed):
         answer = result["answer"]
         operation_id = None
     except RuntimeError as error:
+        # Keep the ID so the user can retry after a network error
         answer = str(error)
 
     history.append({"role": "assistant", "content": answer})
@@ -138,10 +141,12 @@ def confirm_delete(history, session_id, operation_id, confirmed):
 
 
 def build_app() -> gr.Blocks:
+    """Build the chat controls and connect their events"""
     with gr.Blocks(fill_height=True, fill_width=True) as demo:
         gr.Markdown("# AI Database Assistant")
         chatbot = gr.Chatbot(label="Chat", scale=1, min_height=300)
         session_id = gr.State(value=None)
+        # Keep the pending delete ID with this browser session
         operation_id = gr.State(value=None)
 
         with gr.Row():

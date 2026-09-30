@@ -11,6 +11,7 @@ MODEL_NAME = "Qwen/Qwen3-4B-Instruct-2507"
 
 
 class QwenModel:
+    """Load Qwen and generate text from chat messages"""
     def __init__(
         self,
         model_name: str = MODEL_NAME,
@@ -30,6 +31,7 @@ class QwenModel:
             device_map="auto"
         )
 
+        # Turn off training behavior before generating answers
         self.model.eval()
 
         self.generation_config = GenerationConfig(
@@ -44,22 +46,7 @@ class QwenModel:
         self,
         messages: list[dict]
     ) -> str:
-        """
-        Generate response from chat messages
-
-        messages example:
-
-        [
-            {
-                "role": "system",
-                "content": "You are a database assistant."
-            },
-            {
-                "role": "user",
-                "content": "Show all customers from Germany."
-            }
-        ]
-        """
+        """Return only the new text produced by the model"""
 
         inputs = self.tokenizer.apply_chat_template(
             messages,
@@ -74,12 +61,14 @@ class QwenModel:
             for key, value in inputs.items()
         }
 
+        # Do not store gradients while generating text
         with torch.inference_mode():
             outputs = self.model.generate(
                 **inputs,
                 generation_config=self.generation_config
             )
 
+        # Remove the input tokens and decode only the new answer
         generated_tokens = outputs[
             :,
             inputs["input_ids"].shape[1]:

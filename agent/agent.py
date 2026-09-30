@@ -18,23 +18,14 @@ from llm.model import qwen_model
 
 
 class DatabaseAgent:
-    """
-    Main database agent orchestrator.
-
-    Responsibilities:
-    - receive user message
-    - determine request type
-    - route request to correct pipeline
-    - return final response
-
-    The agent does not contain SQL logic.
-    """
+    """Send each request to the right workflow"""
 
     def __init__(self):
         self.model = qwen_model
         self.history = conversation_history
 
     def run(self, user_message: str, session_id: str = "default") -> dict:
+        """Log the request and its total run time"""
         with request_context(session_id):
             started = perf_counter()
             log_event("user_request", message=user_message)
@@ -53,9 +44,7 @@ class DatabaseAgent:
         user_message: str,
         session_id: str = "default"
     ) -> dict:
-        """
-        Process user request
-        """
+        """Check the message and choose a read or write workflow"""
 
         if not isinstance(user_message, str):
             return {
@@ -73,6 +62,7 @@ class DatabaseAgent:
                 "answer": "User message is empty."
             }
 
+        # Handle a confirmation before asking the model to route the message
         pending = pending_confirmations.get(session_id)
         decision = user_message.casefold().strip(" .!?")
         if pending and decision in {"так", "підтверджую", "підтвердити", "yes", "confirm", "ні", "скасувати", "no", "cancel"}:
@@ -80,6 +70,7 @@ class DatabaseAgent:
                 session_id, pending["operation_id"],
                 decision in {"так", "підтверджую", "підтвердити", "yes", "confirm"},
             )
+        # A new request cancels the previous pending delete
         pending_confirmations.clear(session_id)
         recent = self.history.get(session_id)
 
@@ -113,9 +104,7 @@ class DatabaseAgent:
         user_message: str,
         history: list[dict[str, str]]
     ) -> dict:
-        """
-        Handle database READ request
-        """
+        """Read data through the agent loop"""
 
         result = run_read_pipeline(
             user_message,
@@ -130,10 +119,11 @@ class DatabaseAgent:
         self, user_message: str, request_type: str,
         history: list[dict[str, str]], session_id: str,
     ) -> dict:
-        """Execute writes or prepare a mandatory DELETE confirmation."""
+        """Run a write request or ask for delete confirmation"""
         return run_write_pipeline(user_message, request_type, history, session_id)
 
     def confirm(self, session_id: str, operation_id: str, confirmed: bool) -> dict:
+        """Log the user decision and process the saved delete request"""
         with request_context(session_id):
             started = perf_counter()
             log_event("confirmation_request", confirmed=confirmed)
@@ -144,6 +134,7 @@ class DatabaseAgent:
             return result
 
     def _confirm(self, session_id: str, operation_id: str, confirmed: bool) -> dict:
+        """Use the saved request and add the result to chat history"""
         try:
             result = confirm_write(session_id, operation_id, confirmed)
         except Exception as error:
@@ -156,10 +147,7 @@ class DatabaseAgent:
         user_message: str,
         history: list[dict[str, str]]
     ) -> dict:
-        """
-        Handle request that does not require
-        database access
-        """
+        """Answer questions that do not need database access"""
 
         messages = [
             {

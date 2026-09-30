@@ -6,6 +6,7 @@ from llm.model import qwen_model
 
 
 class ActionType(str, Enum):
+    """List the request types supported by the agent"""
     READ = "READ"
     CREATE = "CREATE"
     UPDATE = "UPDATE"
@@ -105,9 +106,7 @@ def route_request(
     user_message: str,
     history: list[dict[str, str]] | None = None
 ) -> ActionType:
-    """
-    Determine the type of user request
-    """
+    """Ask the model to choose one request type"""
 
     messages = [
         {

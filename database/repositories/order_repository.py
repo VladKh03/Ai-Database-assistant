@@ -5,6 +5,7 @@ from database.repositories.write_repository import WriteRepository
 
 
 class OrderRepository(WriteRepository):
+    """Keep order headers and order items together"""
     table = "Orders"
     primary_key = "order_id"
     fields = {
@@ -18,6 +19,7 @@ class OrderRepository(WriteRepository):
     }
 
     def get(self, order_id: int) -> list[dict]:
+        """Return one order with its product items"""
         with self.engine.connect() as connection:
             order = connection.execute(
                 text('SELECT * FROM "Orders" WHERE "OrderID" = :order_id'),
@@ -37,6 +39,7 @@ class OrderRepository(WriteRepository):
             return [{**dict(order), "items": [dict(row) for row in details]}]
 
     def get_customer_orders(self, customer_id: str) -> list[dict]:
+        """Return up to 20 recent orders for one customer"""
         with self.engine.connect() as connection:
             orders = connection.execute(
                 text(
@@ -48,6 +51,7 @@ class OrderRepository(WriteRepository):
             return [dict(row) for row in orders]
 
     def create(self, data: dict) -> dict:
+        """Save the order and all its items in one transaction"""
         values = data.copy()
         items = values.pop("items", None)
         values = self._values(values)
@@ -64,6 +68,7 @@ class OrderRepository(WriteRepository):
 
         with self._transaction() as connection:
             order_result = connection.execute(order_insert, values)
+            # Use the new order ID for each order item
             order_id = order_result.lastrowid
             used_products = set()
             for item in items or []:
@@ -89,10 +94,12 @@ class OrderRepository(WriteRepository):
                     raise ValueError("Order item product has an ambiguous name")
                 product = products[0]
                 product_id = product["ProductID"]
+                # A product can appear only once in this order
                 if product_id in used_products:
                     raise ValueError("The same product cannot appear twice in one order")
                 used_products.add(product_id)
                 unit_price = item.get("unit_price")
+                # Use the current product price when the user gives no price
                 if unit_price is None:
                     unit_price = product["UnitPrice"]
                 if unit_price is None:
@@ -110,6 +117,7 @@ class OrderRepository(WriteRepository):
         return self._update(order_id, changes)
 
     def delete(self, order_id: int) -> dict:
+        """Delete the order items and the order in one transaction"""
         with self._transaction() as connection:
             connection.execute(
                 text('DELETE FROM "Order Details" WHERE "OrderID" = :order_id'),

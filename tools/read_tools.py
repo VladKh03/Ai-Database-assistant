@@ -4,9 +4,7 @@ from api.schemas import ToolResult
 
 
 def query_database(sql: str, repository: QueryRepository | None = None) -> dict:
-    """
-    Execute a validated read-only database query.
-    """
+    """Run a checked SELECT query and return a safe result"""
 
     try:
         rows = (repository or QueryRepository()).select(sql)

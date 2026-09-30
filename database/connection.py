@@ -10,6 +10,7 @@ DATABASE_PATH = BASE_DIR / "data" / "northwind.db"
 DATABASE_URL = f"sqlite:///{DATABASE_PATH}"
 
 
+# Share one engine across repositories and allow backend threads
 engine = create_engine(
     DATABASE_URL,
     connect_args={
@@ -18,9 +19,7 @@ engine = create_engine(
 )
 
 def check_database_connection():
-    """
-    Check whether SQLite database is available
-    """
+    """Check if SQLite can run a simple query"""
     try:
         with engine.connect() as connection:
             connection.execute(text("SELECT 1"))
