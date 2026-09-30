@@ -1,12 +1,13 @@
 """Generate, validate, and execute one structured database write."""
 
 from agent.history import format_history
+from agent.confirmation import pending_confirmations
 from agent.output_format import AGENT_OUTPUT_PROMPT
 from agent.prompts import get_system_prompt
 from agent.tool_registry import execute_tool
 from api.schemas import ToolCall
 from llm.model import qwen_model
-from llm.parser import LLMOutputError, generate_and_parse
+from llm.parser import AgentAction, LLMOutputError, generate_and_parse
 
 
 WRITE_ACTIONS = {
@@ -71,6 +72,7 @@ def build_write_messages(
 def run_write_pipeline(
     user_message: str, request_type: str,
     history: list[dict[str, str]] | None = None,
+    session_id: str = "default",
 ) -> dict:
     if request_type not in WRITE_ACTIONS:
         raise ValueError(f"Unsupported write request type: {request_type}")
@@ -116,6 +118,56 @@ def run_write_pipeline(
             "action": "update_product", "arguments": resolved_arguments,
         }).arguments
 
+    if request_type == "DELETE":
+        lookup_tools = {
+            "delete_customer": ("get_customer", "customer_id", "CompanyName", "клієнта"),
+            "delete_product": ("get_product", "product_id", "ProductName", "продукт"),
+            "delete_order": ("get_order", "order_id", "CustomerID", "замовлення"),
+        }
+        tool, id_field, label_field, entity = lookup_tools[action.action]
+        lookup = execute_tool(tool, **action.arguments)
+        rows = lookup.get("rows", [])
+        if not lookup.get("success") or not rows:
+            return {
+                "success": False, "action": action.action,
+                "request_type": "DELETE",
+                "answer": "Запис не знайдено або його не вдалося прочитати. Видалення не виконано.",
+            }
+        record_id = action.arguments[id_field]
+        label = rows[0].get(label_field, "")
+        operation_id = pending_confirmations.put(session_id, {
+            "action": action.action, "arguments": action.arguments,
+            "user_message": user_message,
+        })
+        return {
+            "success": False, "action": action.action,
+            "request_type": "DELETE", "requires_confirmation": True,
+            "arguments": action.arguments, "record_id": record_id,
+            "operation_id": operation_id,
+            "answer": (
+                f"Ви хочете видалити {entity} #{record_id} — {label}. "
+                + ("Позиції замовлення також будуть видалені. " if action.action == "delete_order" else "")
+                + "Підтвердити? Натисніть Confirm delete або напишіть «підтверджую»; «скасувати» — для скасування."
+            ),
+        }
+    return execute_write_action(action, request_type, user_message)
+
+
+def confirm_write(session_id: str, operation_id: str, confirmed: bool) -> dict:
+    operation = pending_confirmations.take(session_id, operation_id)
+    if operation is None:
+        return {"success": False, "action": None,
+                "answer": "Підтвердження відсутнє, застаріло або вже використане."}
+    if not confirmed:
+        return {"success": True, "action": None, "answer": "Видалення скасовано."}
+    call = ToolCall.model_validate({
+        "action": operation["action"], "arguments": operation["arguments"],
+    })
+    action = AgentAction(action=call.action, arguments=call.arguments)
+    return execute_write_action(action, "DELETE", operation["user_message"])
+
+
+def execute_write_action(action: AgentAction, request_type: str, user_message: str) -> dict:
     # ToolCall validates the action and arguments before this dispatch.
     # Each tool validates again and its repository owns the parameterized SQL.
     try:

@@ -7,7 +7,8 @@ from agent.read_pipeline import (
     run_read_pipeline
 )
 from agent.history import conversation_history, format_history
-from agent.write_pipeline import run_write_pipeline
+from agent.write_pipeline import run_write_pipeline, confirm_write
+from agent.confirmation import pending_confirmations
 
 from llm.model import qwen_model
 
@@ -54,6 +55,14 @@ class DatabaseAgent:
                 "answer": "User message is empty."
             }
 
+        pending = pending_confirmations.get(session_id)
+        decision = user_message.casefold().strip(" .!?")
+        if pending and decision in {"так", "підтверджую", "підтвердити", "yes", "confirm", "ні", "скасувати", "no", "cancel"}:
+            return self.confirm(
+                session_id, pending["operation_id"],
+                decision in {"так", "підтверджую", "підтвердити", "yes", "confirm"},
+            )
+        pending_confirmations.clear(session_id)
         recent = self.history.get(session_id)
 
         try:
@@ -67,11 +76,11 @@ class DatabaseAgent:
                     user_message, recent
                 )
             elif action_type == ActionType.CREATE:
-                result = self._handle_write(user_message, "CREATE", recent)
+                result = self._handle_write(user_message, "CREATE", recent, session_id)
             elif action_type == ActionType.UPDATE:
-                result = self._handle_write(user_message, "UPDATE", recent)
+                result = self._handle_write(user_message, "UPDATE", recent, session_id)
             elif action_type == ActionType.DELETE:
-                result = self._handle_write(user_message, "DELETE", recent)
+                result = self._handle_write(user_message, "DELETE", recent, session_id)
             else:
                 result = self._handle_general(user_message, recent)
 
@@ -109,10 +118,15 @@ class DatabaseAgent:
 
     def _handle_write(
         self, user_message: str, request_type: str,
-        history: list[dict[str, str]],
+        history: list[dict[str, str]], session_id: str,
     ) -> dict:
-        """Execute one validated CREATE, UPDATE, or DELETE action."""
-        return run_write_pipeline(user_message, request_type, history)
+        """Execute writes or prepare a mandatory DELETE confirmation."""
+        return run_write_pipeline(user_message, request_type, history, session_id)
+
+    def confirm(self, session_id: str, operation_id: str, confirmed: bool) -> dict:
+        result = confirm_write(session_id, operation_id, confirmed)
+        self.history.add_turn(session_id, "Підтверджую" if confirmed else "Скасувати", result)
+        return result
 
     def _handle_general(
         self,

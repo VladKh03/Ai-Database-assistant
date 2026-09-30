@@ -26,6 +26,8 @@ class ChatResponse(StrictSchema):
     answer: str
     action: str | None = None
     session_id: str
+    requires_confirmation: bool = False
+    operation_id: str | None = None
 
 
 class ResetRequest(StrictSchema):
@@ -320,6 +322,7 @@ class UpdateOrderRequest(StrictSchema):
 
 
 class ConfirmationRequest(StrictSchema):
+    session_id: str = Field(min_length=1, max_length=128)
     operation_id: str = Field(min_length=1)
     confirmed: bool
 

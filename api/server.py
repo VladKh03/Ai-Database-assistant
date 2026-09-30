@@ -4,8 +4,9 @@ from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException
 
-from api.schemas import ChatRequest, ChatResponse, ResetRequest
+from api.schemas import ChatRequest, ChatResponse, ResetRequest, ConfirmationRequest
 from agent.history import conversation_history
+from agent.confirmation import pending_confirmations
 from database.connection import check_database_connection
 from database.schema import get_database_schema
 
@@ -31,6 +32,8 @@ def chat(request: ChatRequest) -> ChatResponse:
         answer=result.get("answer", ""),
         action=result.get("action"),
         session_id=session_id,
+        requires_confirmation=result.get("requires_confirmation", False),
+        operation_id=result.get("operation_id"),
     )
 
 
@@ -49,17 +52,20 @@ def schema() -> dict:
         raise HTTPException(status_code=503, detail="Database unavailable") from error
 
 
-@app.post("/confirm")
-def confirm() -> dict:
-    # The current write pipeline commits immediately; nothing can be pending.
-    raise HTTPException(status_code=409, detail="No pending operation to confirm")
+@app.post("/confirm", response_model=ChatResponse)
+def confirm(request: ConfirmationRequest) -> ChatResponse:
+    from agent.agent import database_agent
+
+    result = database_agent.confirm(request.session_id, request.operation_id, request.confirmed)
+    return ChatResponse(
+        answer=result["answer"], action=result.get("action"), session_id=request.session_id,
+    )
 
 
 @app.post("/reset")
 def reset(request: ResetRequest | None = None) -> dict:
     if request is None:
         return {"success": True, "cleared": False}
-    return {
-        "success": True,
-        "cleared": conversation_history.clear(request.session_id),
-    }
+    cancelled = pending_confirmations.clear(request.session_id)
+    cleared = conversation_history.clear(request.session_id)
+    return {"success": True, "cleared": cleared, "cancelled": cancelled}

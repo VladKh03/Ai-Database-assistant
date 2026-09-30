@@ -59,6 +59,7 @@ class ConversationHistory:
                 "success": result.get("success", False),
                 "rowcount": result.get("rowcount", 0),
                 "record_id": result.get("record_id"),
+                "requires_confirmation": result.get("requires_confirmation", False),
             }
             if result.get("error"):
                 tool_result["error"] = str(result["error"])[:200]
