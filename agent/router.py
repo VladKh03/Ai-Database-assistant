@@ -1,7 +1,9 @@
+from llm.generation import generate_text
 from enum import Enum
 
-from llm.model import qwen_model
 from agent.history import format_history
+from llm.model import qwen_model
+
 
 class ActionType(str, Enum):
     READ = "READ"
@@ -103,6 +105,10 @@ def route_request(
     user_message: str,
     history: list[dict[str, str]] | None = None
 ) -> ActionType:
+    """
+    Determine the type of user request
+    """
+
     messages = [
         {
             "role": "system",
@@ -110,18 +116,16 @@ def route_request(
         },
         {
             "role": "user",
-            "content": (
-                format_history(history)
-                + "Current user request:\n"
-                + user_message
-            )
+            "content": format_history(history) + "Current user request:\n" + user_message
         }
     ]
 
-    response = qwen_model.generate(messages)
+    response = generate_text(qwen_model, messages)
+
     action = response.strip().upper()
 
     try:
         return ActionType(action)
+
     except ValueError:
         return ActionType.GENERAL

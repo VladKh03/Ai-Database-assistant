@@ -1,6 +1,7 @@
 """Fixed order reads and transactional order/detail writes."""
 
 from sqlalchemy import text
+from errors import InvalidForeignKeyError
 
 from database.repositories.write_repository import WriteRepository
 
@@ -84,8 +85,10 @@ class OrderRepository(WriteRepository):
                         ),
                         {"name": item["product_name"]},
                     ).mappings().all()
-                if len(products) != 1:
-                    raise ValueError("Order item product was not found or has an ambiguous name")
+                if not products:
+                    raise InvalidForeignKeyError("Order item product does not exist")
+                if len(products) > 1:
+                    raise ValueError("Order item product has an ambiguous name")
                 product = products[0]
                 product_id = product["ProductID"]
                 if product_id in used_products:

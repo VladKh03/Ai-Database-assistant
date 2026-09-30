@@ -1,3 +1,5 @@
+from errors import failure
+from llm.generation import generate_text
 from agent.router import (
     route_request,
     ActionType
@@ -85,15 +87,7 @@ class DatabaseAgent:
                 result = self._handle_general(user_message, recent)
 
         except Exception as error:
-            result = {
-                "success": False,
-                "action": None,
-                "error": str(error),
-                "answer": (
-                    "An error occurred while "
-                    "processing the request."
-                )
-            }
+            result = {"action": None, **failure(error)}
 
         self.history.add_turn(session_id, user_message, result)
         return result
@@ -124,7 +118,10 @@ class DatabaseAgent:
         return run_write_pipeline(user_message, request_type, history, session_id)
 
     def confirm(self, session_id: str, operation_id: str, confirmed: bool) -> dict:
-        result = confirm_write(session_id, operation_id, confirmed)
+        try:
+            result = confirm_write(session_id, operation_id, confirmed)
+        except Exception as error:
+            result = {"action": None, **failure(error)}
         self.history.add_turn(session_id, "Підтверджую" if confirmed else "Скасувати", result)
         return result
 
@@ -156,7 +153,7 @@ unless a database tool was actually executed.
             }
         ]
 
-        answer = self.model.generate(
+        answer = generate_text(self.model, 
             messages
         )
 

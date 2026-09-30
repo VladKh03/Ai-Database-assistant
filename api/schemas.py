@@ -23,6 +23,8 @@ class ChatRequest(StrictSchema):
 
 
 class ChatResponse(StrictSchema):
+    success: bool = True
+    error_code: str | None = None
     answer: str
     action: str | None = None
     session_id: str
@@ -405,6 +407,7 @@ class ToolCall(StrictSchema):
 
 
 class ToolResult(StrictSchema):
+    error_code: str | None = None
     success: bool
     rows: list[dict[str, Any]] | None = None
     row_count: int | None = Field(default=None, ge=0)

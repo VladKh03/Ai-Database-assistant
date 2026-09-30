@@ -1,20 +1,21 @@
 """Validated customer tools; SQL is formed by CustomerRepository."""
 
+from errors import error_info, MESSAGES
 from api.schemas import (
     CreateCustomerRequest, DeleteCustomerRequest, GetCustomerRequest,
     SearchCustomersRequest, ToolResult, UpdateCustomerRequest,
 )
 from database.repositories import CustomerRepository
-from tools._write_helper import write_result
+from tools._write_helper import write_result, read_result
 
 
 def get_customer(customer_id: str, *, repository: CustomerRepository | None = None) -> dict:
     try:
         request = GetCustomerRequest.model_validate({"customer_id": customer_id})
         rows = (repository or CustomerRepository()).get(request.customer_id)
-        return ToolResult(success=True, rows=rows, row_count=len(rows)).model_dump(exclude_none=True)
+        return read_result(rows, required=True)
     except Exception as error:
-        return ToolResult(success=False, error=str(error)).model_dump(exclude_none=True)
+        return ToolResult(success=False, **error_info(error)).model_dump(exclude_none=True)
 
 
 def search_customers(
@@ -31,7 +32,7 @@ def search_customers(
         rows = (repository or CustomerRepository()).search(**request.model_dump(exclude_none=True))
         return ToolResult(success=True, rows=rows, row_count=len(rows)).model_dump(exclude_none=True)
     except Exception as error:
-        return ToolResult(success=False, error=str(error)).model_dump(exclude_none=True)
+        return ToolResult(success=False, **error_info(error)).model_dump(exclude_none=True)
 
 
 def create_customer(*, repository: CustomerRepository | None = None, **arguments) -> dict:

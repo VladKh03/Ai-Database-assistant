@@ -1,3 +1,4 @@
+from llm.generation import generate_text
 import json
 import re
 from dataclasses import dataclass
@@ -127,6 +128,7 @@ def parse_agent_output(
         allowed_actions=allowed_actions
     )
 
+
 def repair_agent_output(
     model,
     invalid_output: str,
@@ -165,7 +167,7 @@ Return a corrected valid JSON object.
         }
     ]
 
-    return model.generate(messages)
+    return generate_text(model, messages)
 
 def generate_and_parse(
     model,
@@ -176,7 +178,7 @@ def generate_and_parse(
     Generate agent output and retry parsing once
     """
 
-    raw_output = model.generate(messages)
+    raw_output = generate_text(model, messages)
 
     try:
         return parse_agent_output(

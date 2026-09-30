@@ -1,5 +1,7 @@
 """Generate, validate, and execute one structured database write."""
 
+from llm.generation import generate_text
+from errors import failure, error_info
 from agent.confirmation import pending_confirmations
 from agent.tool_registry import execute_tool
 from api.schemas import ToolCall
@@ -72,18 +74,15 @@ def prepare_write_action(
         lookup = execute_tool("search_products", name=lookup_name, exact_name=True)
         matches = lookup.get("rows", []) if lookup.get("success") else []
         if len(matches) != 1:
-            reason = lookup.get("error") or (
-                f"Product name '{lookup_name}' is ambiguous" if matches
-                else f"Product '{lookup_name}' was not found"
+            problem = (
+                {"success": False, "error": lookup["error"],
+                 "error_code": lookup.get("error_code", "database_error"),
+                 "answer": lookup["error"]}
+                if not lookup.get("success")
+                else failure(code="ambiguous_record" if matches else "record_not_found")
             )
-            return {
-                "success": False,
-                "request_type": request_type,
-                "action": action.action,
-                "arguments": action.arguments,
-                "error": reason,
-                "answer": f"The database was not changed: {reason}",
-            }
+            return {**problem, "request_type": request_type,
+                    "action": action.action, "arguments": action.arguments}
         resolved_arguments = {
             **{key: value for key, value in action.arguments.items() if key != "lookup_name"},
             "product_id": matches[0]["ProductID"],
@@ -106,7 +105,8 @@ def prepare_write_action(
             return {
                 "success": False, "action": action.action,
                 "request_type": "DELETE",
-                "answer": "Запис не знайдено або його не вдалося прочитати. Видалення не виконано.",
+                "answer": lookup.get("error", "Запис не знайдено. Видалення не виконано."),
+                "error_code": lookup.get("error_code", "record_not_found"),
             }
         record_id = action.arguments[id_field]
         label = rows[0].get(label_field, "")
@@ -148,7 +148,7 @@ def execute_write_action(action: AgentAction, request_type: str, user_message: s
     try:
         tool_result = execute_tool(action.action, **action.arguments)
     except Exception as error:
-        tool_result = {"success": False, "error": str(error)}
+        tool_result = failure(error)
 
     result = {
         "success": tool_result.get("success", False),
@@ -160,13 +160,14 @@ def execute_write_action(action: AgentAction, request_type: str, user_message: s
     }
     if not result["success"]:
         result["error"] = tool_result.get("error", "Database write failed")
-        result["answer"] = f"The database was not changed: {result['error']}"
+        result["error_code"] = tool_result.get("error_code", "database_error")
+        result["answer"] = "Базу даних не змінено. " + result["error"]
         return result
 
     # The database commit has completed. Never retry the write just because
     # the response model fails; return a truthful fallback in that case.
     try:
-        answer = qwen_model.generate([
+        answer = generate_text(qwen_model, [
             {
                 "role": "system",
                 "content": (
@@ -186,6 +187,10 @@ def execute_write_action(action: AgentAction, request_type: str, user_message: s
             },
         ]).strip()
         result["answer"] = answer or f"{action.action} succeeded (record {result['record_id']})."
-    except Exception:
-        result["answer"] = f"{action.action} succeeded (record {result['record_id']})."
+    except Exception as error:
+        error_info(error)
+        result["answer"] = (
+            f"Операцію {action.action} виконано для запису {result['record_id']}. "
+            "Зміни збережено, але Qwen не вдалося сформувати пояснення."
+        )
     return result
