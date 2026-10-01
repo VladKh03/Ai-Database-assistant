@@ -19,12 +19,11 @@ Open https://colab.research.google.com/
 Select Runtime > Change runtime type > T4 GPU.
 A free T4 GPU can be used when available.
 
-Replace REPOSITORY_URL with the project GitHub URL.
 Run the following code in a Colab code cell:
 
 ```python
-!git clone REPOSITORY_URL ai-database-assistant
-%cd /content/ai-database-assistant
+!git clone https://github.com/VladKh03/Ai-Database-assistant.git
+%cd Ai-Database-assistant
 !pip install -r requirements.txt
 !python app.py
 ```
